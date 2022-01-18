@@ -10,6 +10,8 @@ numpy = "^1.22.1"
 pandas = "^1.3.5"
 jupyterlab = "^3.2.8"
 matplotlib = "^3.5.1"
+ipympl = "^0.8.6"
+jupyter-contrib-nbextensions = "^0.5.1"
 
 [tool.poetry.dev-dependencies]
 
