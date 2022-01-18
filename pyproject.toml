@@ -8,6 +8,7 @@ authors = ["Andrea Pinto <andrea.pinto2@studio.unibo.it>, Giorgio Buzzanca <gior
 python = ">=3.9,<3.10"
 numpy = "^1.22.1"
 pandas = "^1.3.5"
+jupyterlab = "^3.2.8"
 
 [tool.poetry.dev-dependencies]
 
