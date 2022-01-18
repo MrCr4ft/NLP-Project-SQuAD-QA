@@ -6,6 +6,7 @@ authors = ["Andrea Pinto <andrea.pinto2@studio.unibo.it>, Giorgio Buzzanca <gior
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.10"
+numpy = "^1.22.1"
 
 [tool.poetry.dev-dependencies]
 
