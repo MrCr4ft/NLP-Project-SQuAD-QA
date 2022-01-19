@@ -1380,7 +1380,7 @@ notebook = ">=4.4.1"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.9,<3.10"
-content-hash = "ce6047d32e9eed0a65d43583e12541f5e178901938a4dfd29f8f43e6020ef678"
+content-hash = "2f6c6f9bdfdaf2cfbf2c0e8ebdcb1bba31174699948dbc8bb89b830501bc5e46"
 
 [metadata.files]
 anyio = [

@@ -14,6 +14,7 @@ ipympl = "^0.8.6"
 jupyter-contrib-nbextensions = "^0.5.1"
 scikit-learn = "^1.0.2"
 torch = "^1.10.1"
+click = "^8.0.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
