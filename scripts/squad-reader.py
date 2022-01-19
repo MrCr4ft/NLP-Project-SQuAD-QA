@@ -22,7 +22,8 @@ def load_raw_dataset(dataset_json: str) -> typing.Dict:
         for paragraph in paragraphs:
             dataset['contexts'].append(paragraph['context'])
             current_context_id += 1
-            for question_answer in paragraphs['qas']:
+
+            for question_answer in paragraph['qas']:
                 dataset['questions_ids'].append(question_answer['id'])
                 dataset['questions'].append(question_answer['question'])
                 dataset['contexts_ids'].append(current_context_id - 1)
@@ -36,9 +37,14 @@ def preprocess(dataset):
 
     nlp = spacy.load('en_core_web_trf')
     contexts_docs = []
-    for context in dataset['context']:
+    print("Processing contexts...")
+    for cidx, context in enumerate(dataset['contexts']):
         contexts_docs.append(nlp(context))
+        percentage_completed = 100 * (cidx / len(dataset['contexts']))
+        if percentage_completed.is_integer():
+            print("%d%% processed" % percentage_completed)
 
+    print("Processing questions...")
     for qidx, question in enumerate(dataset['questions']):
         question_id = dataset['questions_ids'][qidx]
         context_id = dataset['contexts_ids'][qidx]
@@ -56,9 +62,11 @@ def preprocess(dataset):
         }
 
         output.append(json.dumps(preprocessed_entry))
+        percentage_completed = 100 * (qidx / len(dataset['questions']))
+        if percentage_completed.is_integer():
+            print("%d%% processed" % percentage_completed)
 
     return output
-
 
 
 @click.command()
