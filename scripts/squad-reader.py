@@ -4,8 +4,8 @@ import json
 import click
 
 
-def load_raw_dataset(dataset_json):
-    raw_data = json.loads(dataset_json)['data']
+def load_raw_dataset(dataset_json: str) -> typing.Dict:
+    raw_data: typing.Dict = json.loads(dataset_json)['data']
 
     dataset = {
         'questions_ids':    [],
