@@ -20,13 +20,13 @@ def load_raw_dataset(dataset_json: str) -> typing.Dict:
     for document in raw_data:
         paragraphs = document['paragraphs']
         for paragraph in paragraphs:
-            dataset['contexts'].append(paragraph['context'])
+            dataset['contexts'].append(paragraph['context'].replace("''", '" ').replace("``", '" '))
 
             current_context_id += 1
 
             for question_answer in paragraph['qas']:
                 dataset['questions_ids'].append(question_answer['id'])
-                dataset['questions'].append(question_answer['question'])
+                dataset['questions'].append(question_answer['question'].replace("''", '" ').replace("``", '" '))
                 dataset['contexts_ids'].append(current_context_id - 1)
                 dataset['answers'].append(question_answer['answers'])
 
@@ -34,29 +34,28 @@ def load_raw_dataset(dataset_json: str) -> typing.Dict:
 
 
 def find_answer_in_context(offsets, start, end):
-    start_token = -1
-    end_token = -1
+    answer_offsets = []
     for idx, offset in enumerate(offsets):
-        if offset[0] == start:
-            start_token = idx
-        if offset[1] == end:
-            end_token = idx
+        if not (end <= offset[0] or
+                start >= offset[1]):
+            answer_offsets.append(idx)
 
-    assert start_token != -1 and end_token != -1, "Couldn't correctly find answer!"
+    assert len(answer_offsets) > 0, "Could not find answer!"
 
-    return start_token, end_token
+    return answer_offsets[0], answer_offsets[-1]
 
 
 def preprocess(dataset):
     output = []
 
-    nlp = spacy.load('en_core_web_trf')
+    # nlp = spacy.load('en_core_web_trf')
+    nlp = spacy.blank("en")
     contexts_docs = []
     print("Processing contexts...")
     for cidx, context in enumerate(dataset['contexts']):
         contexts_docs.append(nlp(context))
         percentage_completed = 100 * (cidx / len(dataset['contexts']))
-        if percentage_completed.is_integer():
+        if int(percentage_completed) % 10 == 0:
             print("%d%% processed" % percentage_completed)
 
     print("Processing questions...")
@@ -70,10 +69,10 @@ def preprocess(dataset):
         preprocessed_entry = {
             'id': question_id,
             'question': [token.text for token in question_doc],
-            'question_pos': [token.pos_ for token in question_doc],
+            # 'question_pos': [token.pos_ for token in question_doc],
             'question_lemma': [token.lemma_ for token in question_doc],
             'context': [token.text for token in context_doc],
-            'context_pos': [token.pos_ for token in context_doc],
+            # 'context_pos': [token.pos_ for token in context_doc],
             'context_lemma': [token.lemma_ for token in context_doc],
             'answer': find_answer_in_context(context_offsets, answer['answer_start'],
                                              answer['answer_start'] + len(answer['text']))
@@ -81,7 +80,7 @@ def preprocess(dataset):
 
         output.append(json.dumps(preprocessed_entry))
         percentage_completed = 100 * (qidx / len(dataset['questions']))
-        if percentage_completed.is_integer():
+        if int(percentage_completed) % 10 == 0:
             print("%d%% processed" % percentage_completed)
 
     return output
