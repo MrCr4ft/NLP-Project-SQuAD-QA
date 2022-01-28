@@ -3,6 +3,7 @@ import json
 
 import click
 import spacy
+import tqdm
 
 
 def load_raw_dataset(dataset_json: str) -> typing.Dict:
@@ -48,18 +49,15 @@ def find_answer_in_context(offsets, start, end):
 def preprocess(dataset):
     output = []
 
-    # nlp = spacy.load('en_core_web_trf')
-    nlp = spacy.blank("en")
+    nlp = spacy.load('en_core_web_trf')
+    # nlp = spacy.blank("en")
     contexts_docs = []
     print("Processing contexts...")
-    for cidx, context in enumerate(dataset['contexts']):
+    for cidx, context in tqdm.tqdm(enumerate(dataset['contexts']), total=len(dataset['contexts'])):
         contexts_docs.append(nlp(context))
-        percentage_completed = 100 * (cidx / len(dataset['contexts']))
-        if int(percentage_completed) % 10 == 0:
-            print("%d%% processed" % percentage_completed)
 
     print("Processing questions...")
-    for qidx, question in enumerate(dataset['questions']):
+    for qidx, question in tqdm.tqdm(enumerate(dataset['questions']), total=len(dataset['questions'])):
         question_id = dataset['questions_ids'][qidx]
         context_id = dataset['contexts_ids'][qidx]
         answer = dataset['answers'][qidx][0]  # only one answer per question
@@ -69,19 +67,16 @@ def preprocess(dataset):
         preprocessed_entry = {
             'id': question_id,
             'question': [token.text for token in question_doc],
-            # 'question_pos': [token.pos_ for token in question_doc],
+            'question_pos': [token.pos_ for token in question_doc],
             'question_lemma': [token.lemma_ for token in question_doc],
             'context': [token.text for token in context_doc],
-            # 'context_pos': [token.pos_ for token in context_doc],
+            'context_pos': [token.pos_ for token in context_doc],
             'context_lemma': [token.lemma_ for token in context_doc],
             'answer': find_answer_in_context(context_offsets, answer['answer_start'],
                                              answer['answer_start'] + len(answer['text']))
         }
 
         output.append(json.dumps(preprocessed_entry))
-        percentage_completed = 100 * (qidx / len(dataset['questions']))
-        if int(percentage_completed) % 10 == 0:
-            print("%d%% processed" % percentage_completed)
 
     return output
 
