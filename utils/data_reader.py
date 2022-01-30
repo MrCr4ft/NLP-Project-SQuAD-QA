@@ -8,7 +8,8 @@ from squad.squad_dataset import SquadDataset
 
 # we need these to display percentage
 SQUAD_SIZE = 87599
-GLOVE_SIZE = 400000
+GLOVE_6B_SIZE = 400000
+GLOVE_840B_SIZE = 2196017
 
 
 def tokens_to_indexes(embedding_dict: typing.Dict, embedding_dim: int, reserved: typing.List[str]) -> typing.Dict:
@@ -17,22 +18,23 @@ def tokens_to_indexes(embedding_dict: typing.Dict, embedding_dim: int, reserved:
         token2idx[reserved[reserved_idx]] = reserved_idx
         # randomly initialize the unknown embedding
         embedding_dict[reserved[reserved_idx]] = np.zeros(embedding_dim, dtype=np.float32) \
-            if reserved[reserved_idx] != "PAD" else np.random.normal(loc=0.0, scale=0.1, size=embedding_dim)
+            if reserved[reserved_idx] != "<PAD>" else np.random.normal(loc=0.0, scale=0.1, size=embedding_dim)
 
     return token2idx
 
 
 def load_glove_embeddings(glove_filepath: str, embedding_dim: int, words_set: typing.Set[str],
-                          reserved: typing.List[str] = None) -> typing.Tuple[typing.List, typing.Dict]:
+                          reserved: typing.List[str] = None, num_embeddings: int = GLOVE_840B_SIZE) -> typing.Tuple[typing.List, typing.Dict]:
     if reserved is None:
         reserved = ["<PAD>", "<OOV>"]
 
     embedding_dict = {}
     print("Loading embeddings from ", glove_filepath, "...")
     with open(glove_filepath, "r", encoding='utf-8') as pretrained_embeddings:
-        for pretrained_embedding in tqdm.tqdm(pretrained_embeddings, total=GLOVE_SIZE):
-            word = pretrained_embedding.split()[0]
-            embedding_vector = np.asarray(pretrained_embedding.split()[1:], dtype=np.float32)
+        for pretrained_embedding in tqdm.tqdm(pretrained_embeddings, total=num_embeddings):
+            word = "".join(pretrained_embedding.split()[:-embedding_dim])
+            embedding_vector = np.asarray(list(map(float, pretrained_embedding.split()[-embedding_dim:])),
+                                          dtype=np.float32)
             if word in words_set:
                 embedding_dict[word] = embedding_vector
 
@@ -53,7 +55,7 @@ def initialize_char_embeddings(char_set: typing.Set[str], embedding_dim: int, re
 
     for reserved_idx, reserved_chr in enumerate(reserved):
         char2idx[reserved_chr] = reserved_idx
-        if reserved_chr == "PAD":
+        if reserved_chr == "<PAD>":
             embedding_mat[reserved_idx, :] = np.zeros(embedding_dim)
 
     return embedding_mat, char2idx
