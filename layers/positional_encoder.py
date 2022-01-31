@@ -6,7 +6,7 @@ from torch.autograd import Variable
 # The function it computes is:
 #       PE(pos, 2i) = sin(pos/10000^(2i/embedding_dim)),
 #       PE(pos, 2i+1) = cos(pos/10000^(2i/embedding_dim))
-# where i iterates from 0 to max_sequence_len, and i iterates from 0 to ceil(embedding_dim/2))
+# where pos iterates from 0 to max_sequence_len, and i iterates from 0 to ceil(embedding_dim/2))
 #
 # Here for numerical stability reasons it's computed as it follows:
 # PE(pos, 2i) = sin(exp(log(pos/10000^(2i/embedding_dim)))) = sin(exp(log(pos) - 2i/embedding_dim * log(10000))) =
