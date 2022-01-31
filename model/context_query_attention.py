@@ -1,8 +1,6 @@
 import torch
 import torch.nn.functional as F
 
-from layers.utils import masked_logits
-
 
 class ContextQueryAttention(torch.nn.Module):
     def __init__(self, hidden_size: int, dropout_prob: float = 0.05):
@@ -49,8 +47,10 @@ class ContextQueryAttention(torch.nn.Module):
         context_mask = context_mask.view(batch_size, context_len, 1)
         query_mask = query_mask.view(batch_size, 1, query_len)
 
-        s1 = F.softmax(masked_logits(s, query_mask), dim=2)  # (BATCH_SIZE, context_max_length, query_max_length)
-        s2 = F.softmax(masked_logits(s, context_mask), dim=1)  # (BATCH_SIZE, context_max_length, query_max_length)
+        s1 = F.softmax(torch.masked_fill(s, query_mask, -1e30), dim=2)  # (BATCH_SIZE, context_max_length,
+        # query_max_length)
+        s2 = F.softmax(torch.masked_fill(s, context_mask, -1e30), dim=1)  # (BATCH_SIZE, context_max_length,
+        # query_max_length)
 
         a = torch.bmm(s1, query)  # context to query attention (BATCH_SIZE, context_max_length, hidden_size)
         b = torch.bmm(torch.bmm(s1, s2.transpose(1, 2)), context)  # query to context attention
@@ -60,7 +60,6 @@ class ContextQueryAttention(torch.nn.Module):
         # hidden_size)
 
         return x.transpose(1, 2)  # todo(gbu): Do we need to transpose or not?
-
     def get_similarity_matrix(self, context: torch.Tensor, query: torch.Tensor):
         """
         Computes the similarity matrix between context and query as described in https://arxiv.org/abs/1611.01603
