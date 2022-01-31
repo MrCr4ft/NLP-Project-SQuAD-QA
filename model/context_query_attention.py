@@ -60,6 +60,7 @@ class ContextQueryAttention(torch.nn.Module):
         # hidden_size)
 
         return x.transpose(1, 2)  # todo(gbu): Do we need to transpose or not?
+    
     def get_similarity_matrix(self, context: torch.Tensor, query: torch.Tensor):
         """
         Computes the similarity matrix between context and query as described in https://arxiv.org/abs/1611.01603
