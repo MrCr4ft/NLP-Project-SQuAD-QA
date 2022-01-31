@@ -2,25 +2,32 @@ import torch
 import numpy as np
 from torch.autograd import Variable
 
-# Positional encoding allows to inject some information about order of the tokens in a sequence
-# The function it computes is:
-#       PE(pos, 2i) = sin(pos/10000^(2i/embedding_dim)),
-#       PE(pos, 2i+1) = cos(pos/10000^(2i/embedding_dim))
-# where pos iterates from 0 to max_sequence_len, and i iterates from 0 to ceil(embedding_dim/2))
-#
-# Here for numerical stability reasons it's computed as it follows:
-# PE(pos, 2i) = sin(exp(log(pos/10000^(2i/embedding_dim)))) = sin(exp(log(pos) - 2i/embedding_dim * log(10000))) =
-# sin(pos * exp(-2i/embedding_dim * log(10000))
-#
-# The positional encoding obtained is concatenated to the embedding vector
-# Additionally the output is passed through a dropout layer
-
-# Since the positional encodings can be computed once for all, and are not a parameter of the layer,
-# can be persistently registered
-
 
 class PositionalEncoder(torch.nn.Module):
+    """
+        Positional encoding allows to inject some information about order of the tokens in a sequence
+        The function it computes is:
+              PE(pos, 2i) = sin(pos/10000^(2i/embedding_dim)),
+              PE(pos, 2i+1) = cos(pos/10000^(2i/embedding_dim))
+        where pos iterates from 0 to max_sequence_len, and i iterates from 0 to ceil(embedding_dim/2))
+
+        Here for numerical stability reasons it's computed as it follows:
+        PE(pos, 2i) = sin(exp(log(pos/10000^(2i/embedding_dim)))) = sin(exp(log(pos) - 2i/embedding_dim * log(10000))) =
+        sin(pos * exp(-2i/embedding_dim * log(10000))
+
+        The positional encoding obtained is concatenated to the embedding vector
+        Additionally the output is passed through a dropout layer
+
+        Since the positional encodings can be computed once for all, and are not a parameter of the layer,
+        can be persistently registered.
+    """
+
     def __init__(self, embedding_dim: int, max_sequence_len: int, dropout_prob: float = 0.0):
+        """
+        :param embedding_dim: The words embedding dimension
+        :param max_sequence_len: The max sequence length (for either context or question)
+        :param dropout_prob: The dropout rate
+        """
         self.embedding_dim = embedding_dim
         self.max_sequence_len = max_sequence_len
         self.dropout = torch.nn.Dropout(p=dropout_prob)
