@@ -40,8 +40,6 @@ class ContextQueryAttention(torch.nn.Module):
         batch_size, context_len, _ = context.size()
         query_len = query.size(1)
 
-        context = context.transpose(1, 2)
-        query = query.transpose(1, 2)
         s = self.get_similarity_matrix(context, query)
 
         context_mask = context_mask.view(batch_size, context_len, 1)
@@ -59,7 +57,7 @@ class ContextQueryAttention(torch.nn.Module):
         x = torch.cat([context, a, context * a, context * b], dim=2)  # (BATCH_SIZE, context_max_length, 4 *
         # hidden_size)
 
-        return x.transpose(1, 2)  # todo(gbu): Do we need to transpose or not?
+        return x
     
     def get_similarity_matrix(self, context: torch.Tensor, query: torch.Tensor):
         """
