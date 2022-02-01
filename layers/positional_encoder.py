@@ -15,7 +15,7 @@ class PositionalEncoder(torch.nn.Module):
         PE(pos, 2i) = sin(exp(log(pos/10000^(2i/embedding_dim)))) = sin(exp(log(pos) - 2i/embedding_dim * log(10000))) =
         sin(pos * exp(-2i/embedding_dim * log(10000))
 
-        The positional encoding obtained is concatenated to the embedding vector
+        The positional encoding obtained is summed to the embedding vector
         Additionally the output is passed through a dropout layer
 
         Since the positional encodings can be computed once for all, and are not a parameter of the layer,
