@@ -37,7 +37,7 @@ class PositionalEncoder(torch.nn.Module):
         super(PositionalEncoder, self).__init__()
 
     def _get_positional_encodings(self):
-        positions = torch.arange(0, self.max_sequence_len, 1)
+        positions = torch.arange(0, self.max_sequence_len, 1).unsqueeze(1)
         dimensions = torch.arange(0, self.embedding_dim, 2)
         frequencies = positions * torch.exp(-1 * (dimensions / self.embedding_dim) * np.log(10000))
 
