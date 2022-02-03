@@ -2,6 +2,7 @@ import typing
 import json
 import copy
 import os
+import re
 
 import click
 import spacy
@@ -10,14 +11,32 @@ import tqdm
 import numpy as np
 
 
+POS_LABELS = [
+    "<PAD>",  # padding added at index 0
+    "$", "''", ",", "-LRB-", "-RRB-", ".", ":", "ADD",
+    "AFX", "CC", "CD", "DT", "EX", "FW", "HYPH", "IN",
+    "JJ", "JJR", "JJS", "LS", "MD", "NFP", "NN", "NNP",
+    "NNPS", "NNS", "PDT", "POS", "PRP", "PRP$", "RB",
+    "RBR", "RBS", "RP", "SYM", "TO", "UH", "VB", "VBD",
+    "VBG", "VBN", "VBP", "VBZ", "WDT", "WP", "WP$",
+    "WRB", "XX", "``", "_SP"
+]  # see https://spacy.io/models/en#en_core_web_trf
+
+POS2IDX = {
+    pos_label: idx for idx, pos_label in enumerate(POS_LABELS)
+}
+
+
 def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: typing.Dict[str, int],
                               char2idx: typing.Dict[str, int], max_context_len: int, max_query_len: int,
                               max_chars_per_word: int, include_pos: bool):
     n_examples = len(dataset['questions'])
     contexts_widxs = []
     contexts_cidxs = []
+    contexts_pos = []  # filled only when compute_pos = True
     questions_widxs = []
     questions_cidxs = []
+    questions_pos = []  # filled only when compute_pos = True
     answers_start_location_probs = []
     answers_end_location_probs = []
     qids = []
@@ -26,8 +45,10 @@ def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: 
     for qidx in tqdm.tqdm(range(n_examples), total=n_examples):
         context_widxs = np.ones(shape=max_context_len, dtype=np.int32) * word2idx["<<PAD>>"]
         context_cidxs = np.ones(shape=(max_context_len, max_chars_per_word), dtype=np.int32) * char2idx["<<PAD>>"]
+        context_pos = np.zeros(shape=max_context_len, dtype=np.int32)
         question_widxs = np.ones(shape=max_query_len, dtype=np.int32) * word2idx["<<PAD>>"]
         question_cidxs = np.ones(shape=(max_query_len, max_chars_per_word), dtype=np.int32) * char2idx["<<PAD>>"]
+        question_pos = np.zeros(shape=max_query_len, dtype=np.int32)
         answer_start_location_probs = np.zeros(shape=max_context_len, dtype=np.int32)
         answer_end_location_probs = np.zeros(shape=max_context_len, dtype=np.int32)
 
@@ -40,11 +61,15 @@ def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: 
             context_widxs[widx] = get_index_from_word(word, word2idx)
             for chidx, char in enumerate(dataset['contexts_char_tokens'][cidx][widx][:max_chars_per_word]):
                 context_cidxs[widx, chidx] = get_index_from_char(char, char2idx)
+            if include_pos:
+                context_pos[widx] = POS2IDX[dataset['contexts_pos'][cidx][widx]]
 
         for widx, word in enumerate(dataset['questions_word_tokens'][qidx]):
             question_widxs[widx] = get_index_from_word(word, word2idx)
             for chidx, char in enumerate(dataset['questions_char_tokens'][qidx][widx][:max_chars_per_word]):
                 question_cidxs[widx, chidx] = get_index_from_char(char, char2idx)
+            if include_pos:
+                question_pos[widx] = POS2IDX[dataset['questions_pos'][qidx][widx]]
 
         answer_start_location_probs[dataset['answers_locations'][qidx][0]] = 1
         answer_end_location_probs[dataset['answers_locations'][qidx][1]] = 1
@@ -55,8 +80,11 @@ def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: 
         answers_start_location_probs.append(answer_start_location_probs)
         answers_end_location_probs.append(answer_end_location_probs)
         qids.append(dataset['questions_ids'][qidx])
+        if include_pos:
+            contexts_pos.append(context_pos)
+            questions_pos.append(question_pos)
 
-    return {
+    output = {
         'contexts_widxs': np.array(contexts_widxs),
         'contexts_cidxs': np.array(contexts_cidxs),
         'questions_widxs': np.array(questions_widxs),
@@ -65,6 +93,11 @@ def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: 
         'answers_end_location_probs': np.array(answers_end_location_probs),
         'qids': np.array(qids)
     }
+    if include_pos:
+        output['contexts_pos'] = contexts_pos
+        output['questions_pos'] = questions_pos
+
+    return output
 
 
 def tokens_to_indexes(embedding_dict: typing.Dict, embedding_dim: int, reserved: typing.List[str]) -> typing.Dict:
@@ -198,7 +231,7 @@ def preprocess(dataset: typing.Dict, word_set: typing.Set[str], char_set: typing
         dataset['contexts_char_tokens'].append(context_char_tokens)
         dataset['contexts_offsets'].append(context_offsets)
         if compute_pos:
-            dataset['contexts_pos'].append([token.pos_ for token in context_doc])
+            dataset['contexts_pos'].append([token.tag_ for token in context_doc])
 
     print("Processing questions...")
     for qidx, question in tqdm.tqdm(enumerate(dataset['questions']), total=len(dataset['questions'])):
@@ -212,7 +245,7 @@ def preprocess(dataset: typing.Dict, word_set: typing.Set[str], char_set: typing
                                                                    answer['answer_start'],
                                                                    answer['answer_start'] + len(answer['text'])))
         if compute_pos:
-            dataset['questions_pos'].append([token.pos_ for token in question_doc])
+            dataset['questions_pos'].append([token.tag_ for token in question_doc])
 
     return dataset
 
@@ -220,12 +253,16 @@ def preprocess(dataset: typing.Dict, word_set: typing.Set[str], char_set: typing
 def parse_document(document: typing.Dict, current_context_idx: int, dataset: typing.Dict) -> int:
     paragraphs = document['paragraphs']
     for paragraph in paragraphs:
-        dataset['contexts'].append(paragraph['context'].replace("''", '" ').replace("``", '" '))
+        dataset['contexts'].append(re.sub('\s\s+', ' ', paragraph['context']).
+                                   replace("''", '" ').
+                                   replace("``", '" '))
         current_context_idx += 1
 
         for question_answer in paragraph['qas']:
             dataset['questions_ids'].append(question_answer['id'])
-            dataset['questions'].append(question_answer['question'].replace("''", '" ').replace("``", '" '))
+            dataset['questions'].append(re.sub('\s\s+', ' ', question_answer['question'])
+                                        .replace("''", '" ').
+                                        replace("``", '" '))
             dataset['contexts_idxs'].append(current_context_idx - 1)
             dataset['answers'].append(question_answer['answers'])
 
@@ -299,7 +336,7 @@ def save_object(obj: object, filepath: str, numpy_obj: bool = False, msg: str = 
         with open(filepath, "w+") as f:
             json.dump(obj, f)
     else:
-        np.savez(filepath, obj)
+        np.savez(filepath, **obj)
     print("Saving complete")
 
 
@@ -310,7 +347,6 @@ def save_object(obj: object, filepath: str, numpy_obj: bool = False, msg: str = 
               help='Filepath of the GloVe embeddings')
 @click.option('--glove-size', default=400000, help='Number of pretrained embeddings in the GloVe file')
 @click.option('--glove-embedding-dim', default=300, help="Dimensionality of the GloVe embeddings")
-@click.option('--char-embeddings-filepath', required=False, help='Filepath of the pretrained characters embeddings')
 @click.option('--char-embedding-dim', default=200, help='Dimensionality of the chars embeddings')
 @click.option('--max-context-len', default=400, help='Maximum length (in terms of tokens) of a context')
 @click.option('--max-query-len', default=60, help='Maximum length (in terms of tokens) of a query')
@@ -318,9 +354,8 @@ def save_object(obj: object, filepath: str, numpy_obj: bool = False, msg: str = 
 @click.option('--compute-pos', default=False, help='Whether to let spacy compute part of speech tags or not')
 @click.option('--output-dir', default='preprocessed_dataset/', help='Directory in which outputs file will be stored')
 def run(squad_filepath: str, training_validation_split: int, glove_filepath: str, glove_size: int,
-        glove_embedding_dim: int, char_embeddings_filepath: str, char_embedding_dim: int,
-        max_context_len: int, max_query_len: int, max_chars_per_word: int, compute_pos: bool,
-        output_dir: str):
+        glove_embedding_dim: int, char_embedding_dim: int, max_context_len: int, max_query_len: int,
+        max_chars_per_word: int, compute_pos: bool, output_dir: str):
 
     if compute_pos:
         print("Preprocessing will take more time to compute POS tagging\n")
@@ -346,9 +381,9 @@ def run(squad_filepath: str, training_validation_split: int, glove_filepath: str
     glove_embmat, word2idx = load_glove_embeddings(glove_filepath, glove_embedding_dim, word_set, glove_size)
     char_embmat, char2idx = initialize_char_embeddings(char_set, char_embedding_dim)
 
-    save_object(glove_embmat, os.path.join(output_dir, "glove_embeddings.npz"), True, "GloVe embeddings")
+    save_object({'emb_mat': glove_embmat}, os.path.join(output_dir, "glove_embeddings.npz"), True, "GloVe embeddings")
     save_object(word2idx, os.path.join(output_dir, "word2idx.json"), False, "Word to indexes dictionary")
-    save_object(char_embmat, os.path.join(output_dir, "char_embeddings.npz"), True, "char embeddings")
+    save_object({'emb_mat': char_embmat}, os.path.join(output_dir, "char_embeddings.npz"), True, "char embeddings")
     save_object(char2idx, os.path.join(output_dir, "char2idx.json"), False, "Char to indexes dictionary")
 
     training_features = get_features_from_dataset(training_set, word2idx, char2idx, max_context_len, max_query_len,
