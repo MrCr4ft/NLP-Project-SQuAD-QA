@@ -144,3 +144,5 @@ embeddings/
 # Preprocessing outputs
 preprocessed_dataset/
 
+# Notebooks
+notebooks/
