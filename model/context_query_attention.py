@@ -1,21 +1,23 @@
+import typing
+
 import torch
 import torch.nn.functional as F
 
 
 class ContextQueryAttention(torch.nn.Module):
-    def __init__(self, hidden_size: int, dropout_prob: float = 0.05):
+    def __init__(self, config: typing.Dict, dropout_prob: float = 0.05):
         """
 
-        :param hidden_size: The size of the word embeddings
+        :param config: The configuration dictionary for the whole model
         :param dropout_prob: The dropout rate
         """
-        self.context_weight = torch.nn.Parameter(torch.zeros(hidden_size, 1))
+        self.context_weight = torch.nn.Parameter(torch.zeros(config['resized_emb_dim'], 1))
         torch.nn.init.xavier_uniform_(self.context_weight)
 
-        self.query_weight = torch.nn.Parameter(torch.zeros(hidden_size, 1))
+        self.query_weight = torch.nn.Parameter(torch.zeros(config['resized_emb_dim'], 1))
         torch.nn.init.xavier_uniform_(self.query_weight)
 
-        self.context_query_weight = torch.nn.Parameter(torch.zeros(1, 1, hidden_size))
+        self.context_query_weight = torch.nn.Parameter(torch.zeros(1, 1, config['resized_emb_dim']))
         torch.nn.init.xavier_uniform_(self.context_query_weight)
 
         self.bias = torch.nn.Parameter(torch.zeros(1))
