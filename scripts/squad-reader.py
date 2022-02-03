@@ -253,16 +253,12 @@ def preprocess(dataset: typing.Dict, word_set: typing.Set[str], char_set: typing
 def parse_document(document: typing.Dict, current_context_idx: int, dataset: typing.Dict) -> int:
     paragraphs = document['paragraphs']
     for paragraph in paragraphs:
-        dataset['contexts'].append(re.sub('\s\s+', ' ', paragraph['context']).
-                                   replace("''", '" ').
-                                   replace("``", '" '))
+        dataset['contexts'].append(paragraph['context'].replace("''", '" ').replace("``", '" '))
         current_context_idx += 1
 
         for question_answer in paragraph['qas']:
             dataset['questions_ids'].append(question_answer['id'])
-            dataset['questions'].append(re.sub('\s\s+', ' ', question_answer['question'])
-                                        .replace("''", '" ').
-                                        replace("``", '" '))
+            dataset['questions'].append(question_answer['question'].replace("''", '" ').replace("``", '" '))
             dataset['contexts_idxs'].append(current_context_idx - 1)
             dataset['answers'].append(question_answer['answers'])
 
