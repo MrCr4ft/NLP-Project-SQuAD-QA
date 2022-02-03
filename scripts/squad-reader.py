@@ -353,9 +353,10 @@ def save_object(obj: object, filepath: str, numpy_obj: bool = False, msg: str = 
 @click.option('--max-chars-per-word', default=16, help='Maximum number of chars per token')
 @click.option('--compute-pos', default=False, help='Whether to let spacy compute part of speech tags or not')
 @click.option('--output-dir', default='preprocessed_dataset/', help='Directory in which outputs file will be stored')
+@click.option('--require-gpu', default=False, help="Whether to use the GPU at inference time (only when compute-pos=True)")
 def run(squad_filepath: str, training_validation_split: int, glove_filepath: str, glove_size: int,
         glove_embedding_dim: int, char_embedding_dim: int, max_context_len: int, max_query_len: int,
-        max_chars_per_word: int, compute_pos: bool, output_dir: str):
+        max_chars_per_word: int, compute_pos: bool, output_dir: str, require_gpu: bool):
 
     if compute_pos:
         print("Preprocessing will take more time to compute POS tagging\n")
@@ -371,6 +372,9 @@ def run(squad_filepath: str, training_validation_split: int, glove_filepath: str
 
     training_set, validation_set = load_raw_dataset(squad_filepath, training_validation_split)  # "linearize" SQuAD
     # simplifying its preprocessing, and split it into training and validation set.
+
+    if require_gpu:
+        spacy.require_gpu()
 
     training_set = preprocess(training_set, word_set, char_set, compute_pos)
     n_unique_words = len(word_set)
