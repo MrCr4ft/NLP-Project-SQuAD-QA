@@ -137,3 +137,12 @@ dataset/
 
 # Models
 model/
+
+# Embeddings
+embeddings/
+
+# Preprocessing outputs
+preprocessed_dataset/
+
+# Notebooks
+notebooks/
