@@ -2,7 +2,6 @@ import typing
 import json
 import copy
 import os
-import re
 
 import click
 import spacy
