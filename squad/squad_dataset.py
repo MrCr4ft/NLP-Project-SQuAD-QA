@@ -2,36 +2,39 @@ import typing
 
 import torch
 from torch.utils.data import Dataset
+import numpy as np
 
 
 class SquadDataset(Dataset):
 
-    def __init__(self, samples: typing.List[typing.Dict]):
-        self.samples = samples
-        self.dataset_size = len(self.samples)
+    def __init__(self, dataset_filepath: str, include_pos: bool = False):
+        self.dataset = np.load(dataset_filepath)
+        self.include_pos = include_pos
 
-    def __len__(self):
-        return self.dataset_size
+        self.contexts_widxs = torch.from_numpy(self.dataset['contexts_widxs']).long()
+        self.contexts_cidxs = torch.from_numpy(self.dataset['contexts_cidxs']).long()
+        self.questions_widxs = torch.from_numpy(self.dataset['questions_widxs']).long()
+        self.questions_cidxs = torch.from_numpy(self.dataset['questions_cidxs']).long()
+        self.answers_start_location_probs = torch.from_numpy(self.dataset['answers_start_location_probs']).long()
+        self.answers_end_location_probs = torch.from_numpy(self.dataset['answers_end_location_probs']).long()
+        self.qids = self.dataset['qids']
+        if self.include_pos:
+            self.contexts_pos = torch.from_numpy(self.dataset['contexts_widxs']).long()
+            self.questions_pos = torch.from_numpy(self.dataset['contexts_widxs']).long()
+        super(SquadDataset, self).__init__()
 
-    def __getitem__(self, sample_idx: int):
-        return (
-            self.samples[sample_idx]["context_widxs"],
-            self.samples[sample_idx]["context_cidxs"],
-            self.samples[sample_idx]["question_widxs"],
-            self.samples[sample_idx]["question_cidxs"],
-            self.samples[sample_idx]["answer_start_location_probs"],
-            self.samples[sample_idx]["answer_end_location_probs"],
-            self.samples[sample_idx]["id"]
+    def __getitem__(self, sample_idx: int) -> typing.Tuple:
+        item = (
+            self.contexts_widxs[sample_idx],
+            self.contexts_cidxs[sample_idx],
+            self.questions_widxs[sample_idx],
+            self.questions_cidxs[sample_idx],
+            self.answers_start_location_probs[sample_idx],
+            self.answers_end_location_probs[sample_idx],
+            self.qids[sample_idx]
         )
+        if self.include_pos:
+            item += self.contexts_pos[sample_idx]
+            item += self.questions_pos[sample_idx]
 
-
-def collate(data):
-    cwidxs, ccidxs, qwidxs, qcidxs, ans_start, ans_end, id = zip(*data)
-    cwidxs = torch.tensor(cwidxs).long()
-    ccidxs = torch.tensor(ccidxs).long()
-    qwidxs = torch.tensor(qwidxs).long()
-    qcidxs = torch.tensor(qcidxs).long()
-    ans_start = torch.from_numpy(ans_start).long()
-    ans_end = torch.from_numpy(ans_end).long()
-
-    return cwidxs, ccidxs, qwidxs, qcidxs, ans_start, ans_end
+        return item
