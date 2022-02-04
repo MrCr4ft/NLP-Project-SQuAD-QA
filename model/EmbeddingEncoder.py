@@ -18,17 +18,13 @@ class Reshape1Dconv(nn.Module):
             kernel_size = 1
         )
 
-    def forward(self, context, query):
+    def forward(self, x):
 
-        context = context.permute(0, 2, 1)
-        context = self.conv1d(context)
-        context = context.permute(0, 2, 1)
+        x = x.permute(0, 2, 1)
+        x = self.conv1d(x)
+        x = x.permute(0, 2, 1)
 
-        query = query.permute(0, 2, 1)
-        query = self.conv1d(query)
-        query = query.permute(0, 2, 1)
-
-        return context, query
+        return x
 
 
 class DepthwiseSeparableConv(nn.Module):
@@ -37,7 +33,8 @@ class DepthwiseSeparableConv(nn.Module):
         super().__init__()
 
         self.in_channels = config['resized_emb_dim']
-        self.out_channels = config['enc_conv_out_channels']
+        self.out_channels = self.in_channels
+        
         self.kernel_size = config['enc_conv_kernel_size']
         self.padding = config['enc_conv_pad_size']
 
@@ -67,13 +64,17 @@ class DepthwiseSeparableConv(nn.Module):
 
 class EncoderBlock(nn.Module):
 
-    # TODO: insert positional encoder in the fw pass
+    # TODO: insert positional encoder in the fw pass -> if model we should not compute again pos encoding(?)
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, model: bool = False):
         super().__init__()
 
-        self.n_convs = config['enc_n_convs']
         self.emb_dim = config['resized_emb_dim']
+
+        if model != True:
+            self.n_convs = config['enc_n_convs']
+        else:
+            self.n_convs = config['model_n_convs']
 
         self.num_heads = config['self_att_num_heads']
 
@@ -103,6 +104,7 @@ class EncoderBlock(nn.Module):
         # Self-attention
         temp = self.layer_norm1(x)
         # The embedding we want to project as query, key and value is the same
+        attn_mask = self.get_attn_mask(mask=attn_mask)
         temp, _ = self.self_attention(
             query = temp,
             key = temp,
@@ -118,6 +120,12 @@ class EncoderBlock(nn.Module):
 
         return x
 
+    def get_attn_mask(self, mask):
+
+        mask = torch.bmm(mask.long().unsqueeze(2), mask.long().unsqueeze(1))
+        mask = torch.logical_not(mask.repeat_interleave(self.num_heads, dim=0))
+        return mask
+
 
 class EncoderEmbeddingLayer(nn.Module):
 
@@ -126,16 +134,17 @@ class EncoderEmbeddingLayer(nn.Module):
 
         self.in_channels = config['word_embed_dim'] + config['char_embed_out_dim']
         self.out_channels = config['resized_emb_dim']
-        self.num_enc_blocks = config['num_enc_blocks']
+        self.encoder_n_blocks = config['encoder_n_blocks']
 
         self.conv1d = Reshape1Dconv(self.in_channels, self.out_channels)
 
-        self.encoder_blocks = nn.ModuleList([EncoderBlock(config) for _ in range(self.num_enc_blocks)])
+        self.encoder_blocks = nn.ModuleList([EncoderBlock(config) for _ in range(self.encoder_n_blocks)])
 
     def forward(self, context, query, C_attn_mask, Q_attn_mask):
 
         # 1D conv to reduce the embedding size
-        context, query = self.conv1d(context, query)
+        context = self.conv1d(context, query)
+        query = self.conv1d(query)
 
         # Encoder embedding blocks pass
         for block in self.encoder_blocks:
