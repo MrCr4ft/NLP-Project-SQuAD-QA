@@ -1,14 +1,13 @@
-from gc import freeze
-from sre_constants import NOT_LITERAL_IGNORE
-from turtle import forward
-from numpy import dtype
+from locale import MON_1
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from .InputEmbedding import InputEmbeddingLayer
-
-
+from .EmbeddingEncoder import EncoderEmbeddingLayer
+# from .context_query_attention import ContextQueryAttention
+from .ModelEncoder import ModelEncoder
+from .Output import Output
 
 class QANet(nn.Module):
 
@@ -17,57 +16,89 @@ class QANet(nn.Module):
 
         self.input_embedding_layer = InputEmbeddingLayer(word_embed, config)
 
-    def forward(self, Cw, Cc, Qw, Qc):
+        self.embedding_encoder_layer = EncoderEmbeddingLayer(config)
+
+        # self.cq_attention = ContextQueryAttention(config)
+
+        self.model_encoder_layer = ModelEncoder(config)
+
+        self.output_layer = Output(config)
 
 
-        return 
+    def forward(self, Cw, Cc, Qw, Qc,
+                c_mask, q_mask):
 
-"""
+        # Returns concatenated words and chars embeddings
+        # out dims (batch, #context_word, p1+p2 emb_dim)
+        context_emb, query_emb = self.input_embedding_layer(
+            Cw, Cc, Qw, Qc
+        )
+
+        # out dims (batch, #context_word, resized embed)
+        context, query = self.embedding_encoder_layer(
+            context = context_emb,
+            query = query_emb,
+            C_attn_mask = c_mask,
+            Q_attn_mask = q_mask
+        )
+
+        # out dims (batch, #context_word, 4*emb_dim)
+        # CtQ_out = self.cq_attention(
+        #     context = context,
+        #     query = query,
+        #     context_mask = c_mask,
+        #     query_mask = = q_mask
+        # )
+
+        M0 = self.model_encoder_layer("""CtQ_out""")
+        M1 = self.model_encoder_layer(M0)
+        M2 = self.model_encoder_layer(M1)
+
+        # We have to mask these logits before computing the CEloss/softmax
+        p1, p2 = Output(M0, M1, M2)
+
+
+        return p1, p2
+
+
 
 config = {
 
-  # INPUT EMBEDDING LAYER
+    # # INPUT EMBEDDING LAYER
 
-  'char_vocab_size':
-  # Initial char embedding dim
-  'char_emb_in_dim':
-  # Char convolution output dim
-  'char_emb_out_dim':
-  # Kernel size for char convolution
-  'char_kernel_size':
-  'highway_n_layers':
+    # # Char convolution output dim
+    'char_embed_out_dim': 100,
+    # # Kernel size for char convolution
+    # 'char_kernel_size':
+    # # Number of convs to perform on chars
+    # 'char_n_convs': 1
+    # 'highway_n_layers':
 
 
-  # ENCODER EMBEDDING LAYER
 
-  'word_emb_dim':
-  # dim of word+char emb at the beginning of emb encoder layer after resize
-  'resized_emd_dim': 128,
-  # conv block output channels
-  'enc_conv_out_channels': 128,
+    # # ENCODER EMBEDDING LAYER
 
-  N.B. The following two params are chosen in a way that
-       the number of words doesn't change during the conv
-  # kernel size encoder conv
-  'enc_conv_kernel_size': 7
-  # padding size encoder conv
-  'enc_conv_pad_size': 3
+    'word_embed_dim': 100,
+    # dim of word+char emb at the beginning of emb encoder layer after resize
+    'resized_emb_dim': 128,
 
-  
+    # N.B. The following two params are chosen in a way that
+    #     the number of words doesn't change during the conv
+    # kernel size encoder conv
+    'enc_conv_kernel_size': 7,
+    # padding size encoder conv
+    'enc_conv_pad_size': 3,
+    # number of conv layers in one encoder block
+    'enc_n_convs': 4,
+
+    'self_att_num_heads': 8,
+    # TODO: rename to '
+    'encoder_n_blocks': 1,
+
+    # MODEL ENCODER LAYER
+
+    # conv number in a model block 
+    'model_n_conv': 2,
+    # blocks of encoder in a model encoder layer
+    'model_n_blocks': 7,
 }
-
-"""
-
-
-# N, word_in_doc, embed_dim
-
-x = torch.rand((5, 10, 50))
-x = x.permute(0,2,1)
-
-conv = nn.Conv1d(
-    in_channels=50,
-    out_channels=20,
-    kernel_size=1
-)
-
-print(conv(x).permute(0, 2, 1).shape)
