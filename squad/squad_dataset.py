@@ -15,8 +15,8 @@ class SquadDataset(Dataset):
         self.contexts_cidxs = torch.from_numpy(self.dataset['contexts_cidxs']).long()
         self.questions_widxs = torch.from_numpy(self.dataset['questions_widxs']).long()
         self.questions_cidxs = torch.from_numpy(self.dataset['questions_cidxs']).long()
-        self.answers_start_location_probs = torch.from_numpy(self.dataset['answers_start_location_probs']).long()
-        self.answers_end_location_probs = torch.from_numpy(self.dataset['answers_end_location_probs']).long()
+        self.answers_start_locations = torch.from_numpy(self.dataset['answers_start_locations']).long()
+        self.answers_end_locations = torch.from_numpy(self.dataset['answers_end_locations']).long()
         self.qids = self.dataset['qids']
         if self.include_pos:
             self.contexts_pos = torch.from_numpy(self.dataset['contexts_widxs']).long()
@@ -32,8 +32,8 @@ class SquadDataset(Dataset):
             self.contexts_cidxs[sample_idx],
             self.questions_widxs[sample_idx],
             self.questions_cidxs[sample_idx],
-            self.answers_start_location_probs[sample_idx],
-            self.answers_end_location_probs[sample_idx],
+            self.answers_start_locations[sample_idx],
+            self.answers_end_locations[sample_idx],
             self.qids[sample_idx]
         )
         if self.include_pos:
