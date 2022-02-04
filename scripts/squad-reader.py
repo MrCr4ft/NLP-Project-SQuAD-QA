@@ -36,8 +36,8 @@ def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: 
     questions_widxs = []
     questions_cidxs = []
     questions_pos = []  # filled only when compute_pos = True
-    answers_start_location_probs = []
-    answers_end_location_probs = []
+    answers_start_locations = []
+    answers_end_locations = []
     qids = []
 
     print("Extracting features...")
@@ -48,8 +48,8 @@ def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: 
         question_widxs = np.ones(shape=max_query_len, dtype=np.int32) * word2idx["<<PAD>>"]
         question_cidxs = np.ones(shape=(max_query_len, max_chars_per_word), dtype=np.int32) * char2idx["<<PAD>>"]
         question_pos = np.zeros(shape=max_query_len, dtype=np.int32)
-        answer_start_location_probs = np.zeros(shape=max_context_len, dtype=np.int32)
-        answer_end_location_probs = np.zeros(shape=max_context_len, dtype=np.int32)
+        answer_start_location = 0
+        answer_end_location = 0
 
         cidx = dataset['contexts_idxs'][qidx]
         if len(dataset['contexts_word_tokens'][cidx]) > max_context_len or \
@@ -70,14 +70,14 @@ def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: 
             if include_pos:
                 question_pos[widx] = POS2IDX[dataset['questions_pos'][qidx][widx]]
 
-        answer_start_location_probs[dataset['answers_locations'][qidx][0]] = 1
-        answer_end_location_probs[dataset['answers_locations'][qidx][1]] = 1
+        answer_start_location = dataset['answers_locations'][qidx][0]
+        answer_end_location = dataset['answers_locations'][qidx][1]
         contexts_widxs.append(context_widxs)
         contexts_cidxs.append(context_cidxs)
         questions_widxs.append(question_widxs)
         questions_cidxs.append(question_cidxs)
-        answers_start_location_probs.append(answer_start_location_probs)
-        answers_end_location_probs.append(answer_end_location_probs)
+        answers_start_locations.append(answer_start_location)
+        answers_end_locations.append(answer_end_location)
         qids.append(dataset['questions_ids'][qidx])
         if include_pos:
             contexts_pos.append(context_pos)
@@ -88,8 +88,8 @@ def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: 
         'contexts_cidxs': np.array(contexts_cidxs),
         'questions_widxs': np.array(questions_widxs),
         'questions_cidxs': np.array(questions_cidxs),
-        'answers_start_location_probs': np.array(answers_start_location_probs),
-        'answers_end_location_probs': np.array(answers_end_location_probs),
+        'answers_start_locations': np.array(answers_start_locations),
+        'answers_end_locations': np.array(answers_end_locations),
         'qids': np.array(qids)
     }
     if include_pos:
