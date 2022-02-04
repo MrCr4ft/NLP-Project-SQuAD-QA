@@ -21,6 +21,9 @@ class SquadDataset(Dataset):
         if self.include_pos:
             self.contexts_pos = torch.from_numpy(self.dataset['contexts_widxs']).long()
             self.questions_pos = torch.from_numpy(self.dataset['contexts_widxs']).long()
+
+        self.dataset_len = len(self.contexts_widxs)
+
         super(SquadDataset, self).__init__()
 
     def __getitem__(self, sample_idx: int) -> typing.Tuple:
@@ -38,3 +41,6 @@ class SquadDataset(Dataset):
             item += self.questions_pos[sample_idx]
 
         return item
+
+    def __len__(self):
+        return self.dataset_len
