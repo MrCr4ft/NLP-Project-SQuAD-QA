@@ -6,7 +6,7 @@ from collections import Counter
 import torch
 
 
-def get_answers_spans(ans_start_probs: torch.Tensor, ans_end_probs: torch.Tensor, ans_max_len: int = -1) -> \
+def get_answers_spans(ans_start_probs: torch.Tensor, ans_end_probs: torch.Tensor, ans_max_len: int = None) -> \
         typing.Tuple[torch.Tensor, torch.Tensor]:
     """
 
@@ -24,15 +24,20 @@ def get_answers_spans(ans_start_probs: torch.Tensor, ans_end_probs: torch.Tensor
     :returns The most probable starting and ending indexes for the whole batch
     :rtype Tuple[torch.Tensor, torch.Tensor]
     """
-    joint_probs = torch.matmul(ans_start_probs.unsqueeze(2), ans_end_probs.unsqueeze(1))  # dim 0 is the batch size
-    for batch_idx in range(joint_probs.size()[0]):
-        joint_probs[batch_idx] = torch.triu(joint_probs[batch_idx])  # set to 0 (i,j) entries where i > j
-        if ans_max_len != -1:
-            joint_probs[batch_idx] = torch.tril(joint_probs[batch_idx], ans_max_len)  # set to 0 (i,j) entries
-            # where (j - i) > ans_max_len
+    ans_start_probs = ans_start_probs.unsqueeze(2)
+    ans_end_probs = ans_end_probs.unsqueeze(1)
+    context_len, device = ans_start_probs.size(1), ans_start_probs.device
 
-    most_probable_start = torch.argmax(torch.max(joint_probs, dim = 1)[0], dim=1)
-    most_probable_end = torch.argmax(torch.max(joint_probs, dim=2)[0], dim=1)
+    joint_probs = torch.matmul(ans_start_probs, ans_end_probs)
+    legal_entries = torch.triu(torch.ones((context_len, context_len), device=device, dtype=torch.long))  # set to 0 (i,j) entries where
+    # i > j
+    if ans_max_len is not None:
+        legal_entries -= torch.triu(torch.ones((context_len, context_len), device=device, dtype=torch.long), diagonal=ans_max_len)
+        # set to 0 (i,j) entries where (j - i) > ans_max_len
+    joint_probs *= legal_entries.long()
+
+    most_probable_start = torch.argmax(torch.max(joint_probs, dim=2)[0], dim=-1)
+    most_probable_end = torch.argmax(torch.max(joint_probs, dim=1)[0], dim=-1)
 
     return most_probable_start, most_probable_end
 
@@ -41,7 +46,7 @@ def get_predictions_from_spans(eval_dict: typing.Dict, qids, pred_ans_start, pre
     pred_dict = {}
     for qid, ans_start, ans_end in zip(qids, pred_ans_start, pred_ans_end):
         context = eval_dict[qid]["context"]
-        context_offsets = eval_dict[str(qid)]["contexts_offsets"]
+        context_offsets = eval_dict[qid]["contexts_offsets"]
         start_idx = context_offsets[ans_start][0]
         end_idx = context_offsets[ans_end][1]
         pred_dict[str(qid)] = context[start_idx: end_idx]
@@ -84,7 +89,7 @@ class EMA:
 def compute_metrics(ground_truths, predictions):
     f1, em, total = 0, 0, len(predictions)
     for key, value in predictions.items():
-        ground_truth = ground_truths[key]['answers'][0]["text"]
+        ground_truth = ground_truths[key]['answer'][0]["text"]
         prediction = value
         em += compute_em(prediction, ground_truth)
         f1 += compute_f1(prediction, ground_truth)
