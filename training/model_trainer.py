@@ -1,13 +1,13 @@
-import json
-import time
+from datetime import datetime
 import os
+import typing
 
 import torch.utils.data
 import torch.optim
 from torch.nn import functional as F
 import tqdm
 
-from utils import *
+from training.utils import *
 
 
 class Trainer:
@@ -45,13 +45,13 @@ class Trainer:
 
     def __load_checkpoint(self, checkpoint_filepath: str):
         checkpoint = torch.load(checkpoint_filepath)
-        self.epoch = checkpoint['init_epoch'] + 1
+        self.init_epoch = checkpoint['init_epoch'] + 1
         self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.best_f1 = checkpoint['best_f1']
         self.best_em = checkpoint['best_em']
         self.steps_performed = checkpoint['steps_performed']
-        self.scheduler.last_epoch = checkpoint['epoch']
+        self.scheduler.last_epoch = self.init_epoch
 
     def __save_checkpoint(self, epoch: int, f1: float, em: float):
         self.ema.assign(self.model)
@@ -70,14 +70,16 @@ class Trainer:
         self.ema.resume(self.model)
 
     def train(self, n_epochs: int, train_data_loader: torch.utils.data.DataLoader,
-              validation_data_loader: torch.utils.data.DataLoader, validation_eval_file: str,
+              validation_data_loader: torch.utils.data.DataLoader, validation_eval_dict: typing.Dict,
               perform_early_stopping: bool = False,
               patience: int = -1):
         elapsed_patience = 0
         for epoch in range(self.init_epoch, self.init_epoch + n_epochs):
             self.train_epoch(train_data_loader, epoch)
             self.ema.assign(self.model)
-            metrics = self.valid(validation_data_loader, validation_eval_file)
+            print("Validating...")
+            metrics = self.valid(validation_data_loader, validation_eval_dict)
+            print(metrics)
             self.ema.resume(self.model)
 
             if perform_early_stopping and metrics["F1"] < self.best_f1 and metrics["EM"] < self.best_em:
@@ -106,8 +108,9 @@ class Trainer:
                 self.optimizer.zero_grad()
 
                 # forward
-                log_p1, log_p2 = self.model(cwidxs, ccidxs, qwidxs, qcidxs)
-                loss = F.nll_loss(log_p1, ans_start) + F.nll_loss(log_p2, ans_end)
+                logit1, logit2 = self.model(cwidxs, ccidxs, qwidxs, qcidxs)
+                loss = F.cross_entropy(logit1, torch.argmax(ans_start, dim=1)) + F.cross_entropy(logit2,
+                                                                                       torch.argmax(ans_end, dim=1))
                 loss_val = loss.item()
 
                 # backward
@@ -118,15 +121,13 @@ class Trainer:
                 self.ema(self.model, self.steps_performed)  # model parameters ema
 
                 pbar.update(batch_size)
-                pbar.set_postfix(epoch=epoch_num, batch_nll=loss_val, learning_rate=self.scheduler.get_lr(),
-                                 time=time.time())
+                pbar.set_postfix(validation = False, epoch=epoch_num, batch_ce=loss_val,
+                                 learning_rate=self.scheduler.get_last_lr(), time=datetime.now().strftime('%b-%d_%H-%M'))
                 self.steps_performed += 1
 
-    def valid(self, data_loader: torch.utils.data.DataLoader, eval_file: str):
+    def valid(self, data_loader: torch.utils.data.DataLoader, ground_truths: typing.Dict):
         self.model.eval()
         predictions = {}
-        with open(eval_file, "r") as fd:
-            ground_truths = json.load(fd)
 
         with torch.no_grad(), tqdm.tqdm(total=len(data_loader.dataset)) as pbar:
             for cwidxs, ccidxs, qwidxs, qcidxs, ans_start, ans_end, qids in data_loader:
@@ -139,12 +140,12 @@ class Trainer:
 
                 batch_size = cwidxs.size(0)
 
-                log_p1, log_p2 = self.model(cwidxs, ccidxs, qwidxs, qcidxs)
+                logit1, logit2 = self.model(cwidxs, ccidxs, qwidxs, qcidxs)
+                p1, p2 = F.softmax(logit1, dim=-1), F.softmax(logit2, dim=-1)
 
-                loss = F.nll_loss(log_p1, ans_start) + F.nll_loss(log_p2, ans_end)
+                loss = F.cross_entropy(logit1, torch.argmax(ans_start, dim=1)) + F.cross_entropy(logit2,
+                                                                                       torch.argmax(ans_end, dim=1))
                 loss_val = loss.item()
-
-                p1, p2 = log_p1.exp(), log_p2.exp()
 
                 pred_ans_start, pred_ans_end = get_answers_spans(p1, p2)
 
@@ -152,7 +153,7 @@ class Trainer:
                 predictions.update(prediction)
 
                 pbar.update(batch_size)
-                pbar.set_postfix(batch_nll=loss_val, time=time.time())
+                pbar.set_postfix(validation=True, batch_ce=loss_val, time=datetime.now().strftime('%b-%d_%H-%M'))
 
         self.model.train()
 
