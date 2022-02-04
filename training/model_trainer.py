@@ -109,8 +109,7 @@ class Trainer:
 
                 # forward
                 logit1, logit2 = self.model(cwidxs, ccidxs, qwidxs, qcidxs)
-                loss = F.cross_entropy(logit1, torch.argmax(ans_start, dim=1)) + F.cross_entropy(logit2,
-                                                                                       torch.argmax(ans_end, dim=1))
+                loss = F.cross_entropy(logit1, ans_start) + F.cross_entropy(logit2, ans_end)
                 loss_val = loss.item()
 
                 # backward
@@ -121,8 +120,8 @@ class Trainer:
                 self.ema(self.model, self.steps_performed)  # model parameters ema
 
                 pbar.update(batch_size)
-                pbar.set_postfix(validation = False, epoch=epoch_num, batch_ce=loss_val,
-                                 learning_rate=self.scheduler.get_last_lr(), time=datetime.now().strftime('%b-%d_%H-%M'))
+                pbar.set_postfix(epoch=epoch_num, batch_ce=loss_val, learning_rate=self.scheduler.get_last_lr(),
+                                 time=datetime.now().strftime('%b-%d_%H-%M'))
                 self.steps_performed += 1
 
     def valid(self, data_loader: torch.utils.data.DataLoader, ground_truths: typing.Dict):
@@ -143,8 +142,7 @@ class Trainer:
                 logit1, logit2 = self.model(cwidxs, ccidxs, qwidxs, qcidxs)
                 p1, p2 = F.softmax(logit1, dim=-1), F.softmax(logit2, dim=-1)
 
-                loss = F.cross_entropy(logit1, torch.argmax(ans_start, dim=1)) + F.cross_entropy(logit2,
-                                                                                       torch.argmax(ans_end, dim=1))
+                loss = F.cross_entropy(logit1, ans_start) + F.cross_entropy(logit2, ans_end)
                 loss_val = loss.item()
 
                 pred_ans_start, pred_ans_end = get_answers_spans(p1, p2)
@@ -153,7 +151,7 @@ class Trainer:
                 predictions.update(prediction)
 
                 pbar.update(batch_size)
-                pbar.set_postfix(validation=True, batch_ce=loss_val, time=datetime.now().strftime('%b-%d_%H-%M'))
+                pbar.set_postfix(batch_ce=loss_val, time=datetime.now().strftime('%b-%d_%H-%M'))
 
         self.model.train()
 
