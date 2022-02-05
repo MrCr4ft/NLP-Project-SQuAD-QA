@@ -97,7 +97,7 @@ class EncoderBlock(nn.Module):
         # Convolutional steps
         for dw_convs, layer_norm in zip(self.conv, self.conv_layer_norm):
             temp = layer_norm(x)
-            temp = F.dropout(temp, p=0.1, self.training)
+            temp = F.dropout(temp, p=0.1, training=self.training)
             temp = F.relu(dw_convs(temp))
             x = temp + x
         
