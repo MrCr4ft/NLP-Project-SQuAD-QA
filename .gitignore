@@ -135,9 +135,6 @@ dataset/
 #Pycharm
 .idea/
 
-# Models
-model/
-
 # Embeddings
 embeddings/
 
