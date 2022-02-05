@@ -11,7 +11,7 @@ class CharacterEmbedding(nn.Module):
                  output_dim: int, kernel_size: int,
                  n_convs: int):
 
-        super().__init__()
+        super(CharacterEmbedding, self).__init__()
 
         self.char_embed = char_embed
         self.embed_dim = self.char_embed.size()[1]
@@ -46,6 +46,7 @@ class CharacterEmbedding(nn.Module):
         # ===========================================================================
 
         x = self.char_embeddings(x) # out shape (batch, word_in_doc, word_len, emb_dim)
+        x = F.dropout(x, p=0.05, training=self.training)
         x = x.permute(0, 3, 1, 2)
         x = F.relu(self.conv1(x))
         
@@ -55,7 +56,6 @@ class CharacterEmbedding(nn.Module):
 
         x, _ = torch.max(x, 3)
         x = x.permute(0, 2, 1)  # out shape (batch, word_in_doc, embed_dim)
-        # x = F.dropout(x, p=0.05)
         
         return x
 
@@ -63,7 +63,7 @@ class CharacterEmbedding(nn.Module):
 class Highway(nn.Module):
 
     def __init__(self, input_size: int, n_layers: int):
-        super().__init__()
+        super(Highway, self).__init__()
 
         # Input and output sizes must be the same
         self.in_size = input_size
@@ -71,11 +71,11 @@ class Highway(nn.Module):
 
         self.n_layers = n_layers
 
-        self.t_gate = nn.ModuleList([nn.Linear(self.in_size, self.out_size) for _ in range(n_layers)])
-        self.h_gate = nn.ModuleList([nn.Linear(self.in_size, self.out_size) for _ in range(n_layers)])
+        self.t_gates = nn.ModuleList([nn.Linear(self.in_size, self.out_size) for _ in range(n_layers)])
+        self.h_gates = nn.ModuleList([nn.Linear(self.in_size, self.out_size) for _ in range(n_layers)])
         
         for i in range(self.n_layers):
-            self.t_gate[i].bias.data.fill_(-1.0)
+            self.t_gates[i].bias.data.fill_(-1.0)
 
     def forward(self, x):
         
@@ -129,11 +129,14 @@ class InputEmbeddingLayer(nn.Module):
         Cw_emb = self.word_embed(Cw)
         Qw_emb = self.word_embed(Qw)
         
+        Cw_emb = F.dropout(Cw_emb, p=0.1, training=self.training)
+        Qw_emb = F.dropout(Qw_emb, p=0.1, training=self.training)
+        
         Cc_emb = self.char_embed(Cc)
         Qc_emb = self.char_embed(Qc) # now they have shape (batch, word_per_doc, char_embed_dim)
         
-        context = torch.concat((Cw_emb, Cc_emb), dim=-1)
-        query = torch.concat((Qw_emb, Qc_emb), dim=-1)
+        context = torch.cat((Cw_emb, Cc_emb), dim=-1)
+        query = torch.cat((Qw_emb, Qc_emb), dim=-1)
 
         context = self.highway(context)
         query = self.highway(query)

@@ -95,6 +95,8 @@ class Trainer:
             self.best_em = max(self.best_em, metrics["EM"])
 
     def train_epoch(self, train_data_loader: torch.utils.data.DataLoader, epoch_num: int):
+        avg_epoch_loss = 0.0
+        n_losses = 0
         with torch.enable_grad(), tqdm.tqdm(total=len(train_data_loader.dataset)) as pbar:
             for cwidxs, ccidxs, qwidxs, qcidxs, ans_start, ans_end, qids in train_data_loader:
                 cwidxs = cwidxs.to(self.device)
@@ -111,6 +113,8 @@ class Trainer:
                 logit1, logit2 = self.model(cwidxs, ccidxs, qwidxs, qcidxs)
                 loss = F.cross_entropy(logit1, ans_start) + F.cross_entropy(logit2, ans_end)
                 loss_val = loss.item()
+                avg_epoch_loss = (avg_epoch_loss * n_losses + loss_val) / (n_losses + 1)
+                n_losses += 1
 
                 # backward
                 loss.backward()
@@ -120,7 +124,7 @@ class Trainer:
                 self.ema(self.model, self.steps_performed)  # model parameters ema
 
                 pbar.update(batch_size)
-                pbar.set_postfix(epoch=epoch_num, batch_ce=loss_val, learning_rate=self.scheduler.get_last_lr(),
+                pbar.set_postfix(epoch=epoch_num, batch_ce=loss_val, avg_loss=avg_epoch_loss, learning_rate=self.scheduler.get_last_lr(),
                                  time=datetime.now().strftime('%b-%d_%H-%M'))
                 self.steps_performed += 1
 

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from EmbeddingEncoder import Reshape1Dconv, EncoderBlock
+from .EmbeddingEncoder import Reshape1Dconv, EncoderBlock
 
 
 class ModelEncoder(nn.Module):
@@ -20,14 +20,15 @@ class ModelEncoder(nn.Module):
             [EncoderBlock(config, model = True) for _ in range(self.n_blocks)]
         )
 
-    def forward(self, x, mask):
+    def forward(self, x, mask, first_pass: bool = False):
         
         """
             The input x must have dimension (batch_size, #word_per_doc, 4*emb_dim)
         """
 
         # Reduce the dim of the embedding back to emb_dim
-        x = self.reshape_conv(x)
+        if first_pass:
+            x = self.reshape_conv(x)
 
         # Model encoder pass
         # 'mask' should be the context mask with the same size, I'm not 100% sure about this

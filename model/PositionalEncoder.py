@@ -28,13 +28,12 @@ class PositionalEncoder(torch.nn.Module):
         :param max_sequence_len: The max sequence length (for either context or question)
         :param dropout_prob: The dropout rate
         """
+        super(PositionalEncoder, self).__init__()
         self.embedding_dim = embedding_dim
         self.max_sequence_len = max_sequence_len
         self.dropout = torch.nn.Dropout(p=dropout_prob)
 
         self.register_buffer('pos_encodings', self._get_positional_encodings())
-
-        super(PositionalEncoder, self).__init__()
 
     def _get_positional_encodings(self):
         positions = torch.arange(0, self.max_sequence_len, 1).unsqueeze(1)
