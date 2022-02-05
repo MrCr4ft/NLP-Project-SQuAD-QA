@@ -44,12 +44,12 @@ class ContextQueryAttention(torch.nn.Module):
 
         s = self.get_similarity_matrix(context, query)
 
-        context_mask = context_mask.view(batch_size, context_len, 1)
-        query_mask = query_mask.view(batch_size, 1, query_len)
+        context_mask = torch.logical_not(context_mask.view(batch_size, context_len, 1))
+        query_mask = torch.logical_not(query_mask.view(batch_size, 1, query_len))
 
-        s1 = F.softmax(torch.masked_fill(s, query_mask, -1e30), dim=2)  # (BATCH_SIZE, context_max_length,
+        s1 = F.softmax(torch.masked_fill(s, query_mask, -1e8), dim=2)  # (BATCH_SIZE, context_max_length,
         # query_max_length)
-        s2 = F.softmax(torch.masked_fill(s, context_mask, -1e30), dim=1)  # (BATCH_SIZE, context_max_length,
+        s2 = F.softmax(torch.masked_fill(s, context_mask, -1e8), dim=1)  # (BATCH_SIZE, context_max_length,
         # query_max_length)
 
         a = torch.bmm(s1, query)  # context to query attention (BATCH_SIZE, context_max_length, hidden_size)

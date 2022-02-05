@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from .InputEmbedding import InputEmbeddingLayer
 from .EmbeddingEncoder import EncoderEmbeddingLayer
-# from .context_query_attention import ContextQueryAttention
+from .ContextQueryAttention import ContextQueryAttention
 from .ModelEncoder import ModelEncoder
 from .Output import Output
 
@@ -18,15 +18,17 @@ class QANet(nn.Module):
 
         self.embedding_encoder_layer = EncoderEmbeddingLayer(config)
 
-        # self.cq_attention = ContextQueryAttention(config)
+        self.cq_attention = ContextQueryAttention(config)
 
         self.model_encoder_layer = ModelEncoder(config)
 
         self.output_layer = Output(config)
 
 
-    def forward(self, Cw, Cc, Qw, Qc,
-                c_mask, q_mask):
+    def forward(self, Cw, Cc, Qw, Qc):
+
+        c_mask = (torch.zeros_like(Cw) != Cw)   # False where padding
+        q_mask = (torch.zeros_like(Qw) != Qw)
 
         # Returns concatenated words and chars embeddings
         # out dims (batch, #context_word, p1+p2 emb_dim)
@@ -43,26 +45,35 @@ class QANet(nn.Module):
         )
 
         # out dims (batch, #context_word, 4*emb_dim)
-        # CtQ_out = self.cq_attention(
-        #     context = context,
-        #     query = query,
-        #     context_mask = c_mask,
-        #     query_mask = = q_mask
-        # )
+        CtQ_out = self.cq_attention(
+            context = context,
+            query = query,
+            context_mask = c_mask,
+            query_mask = q_mask
+        )
 
-        M0 = self.model_encoder_layer("""CtQ_out""")
+        M0 = self.model_encoder_layer(CtQ_out)
         M1 = self.model_encoder_layer(M0)
         M2 = self.model_encoder_layer(M1)
 
         # We have to mask these logits before computing the CEloss/softmax
         p1, p2 = Output(M0, M1, M2)
 
+        p1 = torch.masked_fill(p1, torch.logical_not(c_mask), 1e-8) 
+        p2 = torch.masked_fill(p2, torch.logical_not(q_mask), 1e-8)
 
         return p1, p2
 
 
 
 config = {
+
+
+    # context sequence length
+    'context_seq_len': 400,
+    # query sequence length
+    'query_seq_len': 60,
+
 
     # # INPUT EMBEDDING LAYER
 
