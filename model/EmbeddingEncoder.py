@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .PositionalEncoder import PositionalEncoder
 
 class Reshape1Dconv(nn.Module):
 
@@ -138,6 +139,12 @@ class EncoderEmbeddingLayer(nn.Module):
 
         self.conv1d = Reshape1Dconv(self.in_channels, self.out_channels)
 
+        self.c_seq_len = config['context_seq_len']
+        self.q_seq_len = config['query_seq_len']
+
+        self.c_pos_encoder = PositionalEncoder(self.out_channels, self.c_seq_len)
+        self.q_pos_encoder = PositionalEncoder(self.out_channels, self.q_seq_len)
+
         self.encoder_blocks = nn.ModuleList([EncoderBlock(config) for _ in range(self.encoder_n_blocks)])
 
     def forward(self, context, query, C_attn_mask, Q_attn_mask):
@@ -146,6 +153,10 @@ class EncoderEmbeddingLayer(nn.Module):
         context = self.conv1d(context, query)
         query = self.conv1d(query)
 
+        # Positional encoding
+        context = self.c_pos_encoder(context)
+        query = self.q_pos_encoder(query)
+        
         # Encoder embedding blocks pass
         for block in self.encoder_blocks:
             context = block(context, C_attn_mask)
