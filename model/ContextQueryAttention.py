@@ -5,12 +5,15 @@ import torch.nn.functional as F
 
 
 class ContextQueryAttention(torch.nn.Module):
-    def __init__(self, config: typing.Dict, dropout_prob: float = 0.05):
+    def __init__(self, config: typing.Dict, dropout_prob: float = 0.1):
         """
 
         :param config: The configuration dictionary for the whole model
         :param dropout_prob: The dropout rate
         """
+        
+        super(ContextQueryAttention, self).__init__()
+        
         self.context_weight = torch.nn.Parameter(torch.zeros(config['resized_emb_dim'], 1))
         torch.nn.init.xavier_uniform_(self.context_weight)
 
@@ -23,8 +26,6 @@ class ContextQueryAttention(torch.nn.Module):
         self.bias = torch.nn.Parameter(torch.zeros(1))
 
         self.dropout_prob = dropout_prob
-
-        super(ContextQueryAttention, self).__init__()
 
     def forward(self, context: torch.Tensor, query: torch.Tensor, context_mask: torch.Tensor, query_mask: torch.Tensor):
         """

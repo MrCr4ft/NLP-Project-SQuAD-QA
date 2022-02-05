@@ -65,8 +65,6 @@ class DepthwiseSeparableConv(nn.Module):
 
 class EncoderBlock(nn.Module):
 
-    # TODO: insert positional encoder in the fw pass -> if model we should not compute again pos encoding(?)
-
     def __init__(self, config: dict, model: bool = False):
         super().__init__()
 
@@ -88,7 +86,7 @@ class EncoderBlock(nn.Module):
         self.self_attention = nn.MultiheadAttention(
             embed_dim = self.emb_dim,
             num_heads = self.num_heads,
-            # dropout ?
+            dropout = 0.1,
             batch_first = True
         )
 
@@ -99,11 +97,13 @@ class EncoderBlock(nn.Module):
         # Convolutional steps
         for dw_convs, layer_norm in zip(self.conv, self.conv_layer_norm):
             temp = layer_norm(x)
+            temp = F.dropout(temp, p=0.1, self.training)
             temp = F.relu(dw_convs(temp))
             x = temp + x
-
+        
         # Self-attention
         temp = self.layer_norm1(x)
+        
         # The embedding we want to project as query, key and value is the same
         attn_mask = self.get_attn_mask(mask=attn_mask)
         temp, _ = self.self_attention(
@@ -116,15 +116,17 @@ class EncoderBlock(nn.Module):
 
         # Linear layer
         temp = self.layer_norm2(x)
+        temp = F.dropout(temp, p=0.1, training=self.training)
         temp = self.linear(x)
         x = temp + x
-
+        
         return x
 
     def get_attn_mask(self, mask):
-
-        mask = torch.bmm(mask.long().unsqueeze(2), mask.long().unsqueeze(1))
-        mask = torch.logical_not(mask.repeat_interleave(self.num_heads, dim=0))
+        mask = torch.bmm(mask.float().unsqueeze(2), mask.float().unsqueeze(1))
+        mask = torch.logical_not(mask.bool())
+        mask = mask.float() * -1e8
+        mask = mask.repeat_interleave(self.num_heads, dim=0)
         return mask
 
 
@@ -150,13 +152,13 @@ class EncoderEmbeddingLayer(nn.Module):
     def forward(self, context, query, C_attn_mask, Q_attn_mask):
 
         # 1D conv to reduce the embedding size
-        context = self.conv1d(context, query)
+        context = self.conv1d(context)
         query = self.conv1d(query)
 
         # Positional encoding
         context = self.c_pos_encoder(context)
         query = self.q_pos_encoder(query)
-        
+
         # Encoder embedding blocks pass
         for block in self.encoder_blocks:
             context = block(context, C_attn_mask)

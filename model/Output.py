@@ -22,4 +22,4 @@ class Output(nn.Module):
         p1 = self.w1(cat1)
         p2 = self.w2(cat2)
 
-        return p1, p2
+        return p1.squeeze(), p2.squeeze()
