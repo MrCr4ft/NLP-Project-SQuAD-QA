@@ -1,64 +1,27 @@
 \chapter{System Description} 
-    The architecture of QANet can be decomposed into 5 main building blocks: an input embedding layer, 
-    an encoding embedding layer, a context-query attention layer, a model encoder layer, and an output layer.
+The architecture of QANet can be decomposed in 5 main building blocks: an input embedding layer, an encoding embedding layer, a context-query attention layer, a model encoder layer and a output layer.
+1. Input embedding layer
+In this layer we extract the word and character embeddings using their indices; the word embeddings are 300-dimensional vectors, we used the pre-trained Glove embeddings, and the character embeddings
+are 200-dimensional vectors that are initialized randomly and are trainable. The OOV words are mapped to a vector of zeros, in the paper this embedding was made trainable while in our implementation it's fixed.
+The character embeddings of every word is passed through convolutional layers, in order to aggregate the information between characters and obtain a new representation of the word. At the end of this layer we'll 
+have the concatenation of word embeddings and character embeddings. This new representation is passed through an Highway network {CIT HIGHWAY}, which has the purpose of facilitating the flow of information,
+through the usage of gating units, that helps with the training of deep neural networks.
+2. Embedding encoder layer
+This layer is composed by stacking different encoders, that can be decomposed in: convolutional layer, self-attention layer and feed forward layer. Each of this layers is preceded by a normalization layer,
+as proposed in {CIT LAYERNORM}, and wrapped inside a residual block. The dimension of the word embedding in input in this layer is mapped into a lower dimension by one-dimensional convolution.
+We implemented the convolutions in the encoder block as depth-wise separable, as in the paper. The multi-head attention mechanism that we've used is the one defined in {CIT TRANSFORMER}, which transform each word
+embedding in three new representations, query, key and values, then computes the similarity between a query and all the possible keys and use these similarity values to compute a new representation of the word.
+3. Context-Query attention
+Here the information between context and query is aggregated using attention. This is done by computing the similarity matrix [S ..], filled with the similarities between each pair of context and query words, that
+is then normalized with a softmax. THe context-to-query attention is computed as [A ..]. The similarity funcion used is the trilinear function. Furthermore, we used also a query-to-context attention; in order 
+to do this we computed the column normalized matrix [S--] of S with a softmax, then the query-to-context is computed as [B--].
+The output of this layer is, for each word, given by [c, a, c*a, c*b] where a and b are rows of A and B. 
+4. Model encoder layer
+In this layer we use the same encoder structure used in the Embedding encoder layer. The output of this layer is given by a concatenation of the outputs of the different blocks, in particular we concatenated
+the output of the first and second block, and the output of the first and third block. These blocks 
+5. Output layer
+The two vector obtained in the previous layer are passed into two separate linear layers with a softmax at the end. This allow to compute the start and the end of an answer span. The loss function used
+is a sum of the cross-entropy loss function computed both on the star position and the end position probabilities.
+At inference time the span is chosen such that the product of the probabilities of the indices is maximized.
 
-    \section{Input Embedding Layer}
-        In this layer, we extract the word and character embeddings using their indices, with the first two elements always 
-        reserved to padding and OOV words respectively.
-        While in the paper the OOV embedding was made trainable, we decided to keep it fixed in our implementation.
-
-        The character embeddings of every word are passed through convolutional layers, in order to aggregate the 
-        information between characters and obtain a new representation of the word. 
-        
-        At the end of this layer we'll have the concatenation of word embeddings and character embeddings. 
-        This new representation is passed through a Highway network\cite{srivastava2015highway}, which has the purpose of facilitating the 
-        flow of information, through the usage of gating units, that helps with the training of deep neural networks.
-    
-    \section{Embedding Encoder Layer}
-        This layer is composed by stacking different encoders, which are made of convolutional layer, self-attention layer, 
-        and feed forward layer. 
-        
-        Each of these layers is preceded by a normalization layer, as proposed in \cite{ba2016layer}, and wrapped inside 
-        a residual block. 
-        
-        The input dimension of the word embeddings is mapped into a lower dimension by a one-dimensional convolution.
-
-        We implemented the convolutions in the encoder block as depth-wise separable, as in the paper. 
-        
-        The multi-head attention mechanism that we have used is the one defined in \cite{vaswani2017attention}, which computes attention as:
-        $MultiHeadAttention(Q,K,V) = Concat(head_{1},...,head_{n}) W^{O}$ where $head_{i} = softmax(\frac{Q_{i}W_{i}^{Q} (K_{i}W_{i}^{K})^{T}}{\sqrt(d_{k})}) V_{i} W_{i}^{V}$.
-        
-        In our case, given that we are applying a self-attention, $Q$, $K$, and $V$ are the same matrices.
-    
-    \section{Context-Query Attention Layer}
-        Here the information between the context and the query is aggregated using attention. 
-        
-        This is done by computing the similarity matrix $S \in \mathbb{R}^{n \times m}$, filled with the similarities between each pair of context and query words, that
-        is then normalized with a softmax. 
-        
-        The context-to-query attention is computed as $A = \bar{S} \cdot Q^{T} \in \mathbb{R}^{n \times d}$. 
-        The similarity function used is the trilinear function. 
-        
-        Furthermore, we used also a query-to-context attention.
-        To do so, we computed the column normalized matrix $\bar{\bar{S}}$ of $S$ with a softmax, then the query-to-context is computed as 
-        $\dot{\dot{B}}$. The output of this layer is, for each word, given by $[c, a, c \odot a, c \odot b]$ where $a$ and $b$ are rows of $A$ and $B$. 
-
-    \section{Model Encoder Layer}
-        In this layer, we use the same encoder structure as in the embedding encoder layer. 
-        
-        The output of this layer is given by the concatenation of the outputs of the different blocks.
-        In particular, we concatenated the output of the first and second block and the output of the first and the third block. 
-        
-        Because of the concatenation, the dimension of the embedding in input is larger, so we decided to bring it down with a one
-        dimensional convolution.
-
-    \section{Output Layer}
-        The two vectors obtained in the previous layer are passed into two separate linear layers with a softmax at the end. 
-        
-        This allows us to compute the start and the end of an answer's span. The loss function used is the sum of the cross-entropy 
-        losses computed both on the start position and the end position probabilities.
-
-        At inference time, the span is chosen such that the product of the probabilities of the indices is maximized.
-    
-    In order to deal with the padding of the sequences, we compute a boolean mask that is passed through the layers, and used whenever
-    necessary to compute a softmax function (i.e. in the attention(s) computation and in the output layer).
+In order to deal with the padding of the sequences, we defined a mask that is passed whenever it's necessary to compute a softmax function, i.e. in the attention(s) computation and in the output layer.
