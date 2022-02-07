@@ -30,14 +30,18 @@ class Reshape1Dconv(nn.Module):
 
 class DepthwiseSeparableConv(nn.Module):
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, model: bool = False):
         super().__init__()
 
         self.in_channels = config['resized_emb_dim']
         self.out_channels = self.in_channels
         
-        self.kernel_size = config['enc_conv_kernel_size']
-        self.padding = config['enc_conv_pad_size']
+        if not model:
+            self.kernel_size = config['enc_conv_kernel_size']
+            self.padding = config['enc_conv_pad_size']
+        else:
+            self.kernel_size = config['enc_conv_kernel_size_model']
+            self.padding = config['enc_conv_pad_size_model']
 
         self.depthwise = nn.Conv1d(
             in_channels = self.in_channels,
@@ -77,7 +81,7 @@ class EncoderBlock(nn.Module):
 
         self.num_heads = config['self_att_num_heads']
 
-        self.conv = nn.ModuleList([DepthwiseSeparableConv(config) for _ in range(self.n_convs)])
+        self.conv = nn.ModuleList([DepthwiseSeparableConv(config, model) for _ in range(self.n_convs)])
 
         self.conv_layer_norm = nn.ModuleList([nn.LayerNorm(self.emb_dim) for _ in range(self.n_convs)])
         self.layer_norm1 = nn.LayerNorm(self.emb_dim)

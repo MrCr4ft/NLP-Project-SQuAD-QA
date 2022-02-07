@@ -6,7 +6,7 @@ from collections import Counter
 import torch
 
 
-def get_answers_spans(ans_start_probs: torch.Tensor, ans_end_probs: torch.Tensor, ans_max_len: int = None) -> \
+def get_answers_spans(ans_start_probs: torch.Tensor, ans_end_probs: torch.Tensor, ans_max_len: int = 30) -> \
         typing.Tuple[torch.Tensor, torch.Tensor]:
     """
 
