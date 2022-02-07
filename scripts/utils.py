@@ -8,7 +8,8 @@ import spacy.tokens
 import tqdm
 
 
-def parse_document(document: typing.Dict, current_context_idx: int, dataset: typing.Dict) -> int:
+def parse_document(document: typing.Dict, current_context_idx: int,
+                   dataset: typing.Dict, include_ans: bool = True) -> int:
     paragraphs = document['paragraphs']
     for paragraph in paragraphs:
         dataset['contexts'].append(paragraph['context'].replace("''", '" ').replace("``", '" '))
@@ -18,16 +19,19 @@ def parse_document(document: typing.Dict, current_context_idx: int, dataset: typ
             dataset['questions_ids'].append(question_answer['id'])
             dataset['questions'].append(question_answer['question'].replace("''", '" ').replace("``", '" '))
             dataset['contexts_idxs'].append(current_context_idx - 1)
-            dataset['answers'].append(question_answer['answers'])
+            if include_ans:
+                dataset['answers'].append(question_answer['answers'])
 
     return current_context_idx
 
 
-def load_raw_dataset(squad_filepath: str, train_dev_split: float) -> typing.Tuple[typing.Dict, typing.Dict]:
+def load_raw_dataset(squad_filepath: str, train_dev_split: float,
+                     include_ans: bool = True) -> typing.Tuple[typing.Dict, typing.Dict]:
     """
     Load the SQuAD dataset (version 1.1!)
     :param squad_filepath: The dataset filepath
     :param train_dev_split: The percentage of the dataset used as training set
+    :param include_ans: False if we are loading a test set (with no answers)
     :return: The training set and the evaluation set as "flattened" dictionaries
     """
 
@@ -44,19 +48,21 @@ def load_raw_dataset(squad_filepath: str, train_dev_split: float) -> typing.Tupl
     training_set = {
         'questions_ids': [],
         'questions': [],
-        'answers': [],
         'contexts': [],
         'contexts_idxs': []
     }
+    if include_ans:
+        training_set['answers'] = []
+
     validation_set = copy.deepcopy(training_set)
 
     current_context_idx = 0
     for training_doc in raw_dataset[:training_set_len]:
-        current_context_idx = parse_document(training_doc, current_context_idx, training_set)
+        current_context_idx = parse_document(training_doc, current_context_idx, training_set, include_ans)
 
     current_context_idx = 0
     for validation_doc in raw_dataset[training_set_len:]:
-        current_context_idx = parse_document(validation_doc, current_context_idx, validation_set)
+        current_context_idx = parse_document(validation_doc, current_context_idx, validation_set, include_ans)
 
     return training_set, validation_set
 
@@ -110,13 +116,14 @@ def get_tokens_from_nlp_doc(nlp_doc: spacy.tokens.Doc, word_set: typing.Set[str]
 
 
 def preprocess(dataset: typing.Dict, word_set: typing.Set[str], char_set: typing.Set[str],
-               compute_pos: bool = False) -> typing.Dict:
+               compute_pos: bool = False, include_ans: bool = True) -> typing.Dict:
     dataset['contexts_word_tokens'] = []
     dataset['contexts_char_tokens'] = []
     dataset['contexts_offsets'] = []
     dataset['questions_word_tokens'] = []
     dataset['questions_char_tokens'] = []
-    dataset['answers_locations'] = []
+    if include_ans:
+        dataset['answers_locations'] = []
     if compute_pos:
         dataset['contexts_pos'] = []
         dataset['questions_pos'] = []
@@ -137,14 +144,15 @@ def preprocess(dataset: typing.Dict, word_set: typing.Set[str], char_set: typing
     print("Processing questions...")
     for qidx, question in tqdm.tqdm(enumerate(dataset['questions']), total=len(dataset['questions'])):
         context_idx = dataset['contexts_idxs'][qidx]
-        answer = dataset['answers'][qidx][0]  # in the version of SQuAD used there is only one answer
         question_doc = nlp(question)
         question_word_tokens, question_char_tokens = get_tokens_from_nlp_doc(question_doc, word_set, char_set)
         dataset['questions_word_tokens'].append(question_word_tokens)
         dataset['questions_char_tokens'].append(question_char_tokens)
-        dataset['answers_locations'].append(find_answer_in_context(dataset['contexts_offsets'][context_idx],
-                                                                   answer['answer_start'],
-                                                                   answer['answer_start'] + len(answer['text'])))
+        if include_ans:
+            answer = dataset['answers'][qidx][0]  # in the version of SQuAD used there is only one answer
+            dataset['answers_locations'].append(find_answer_in_context(dataset['contexts_offsets'][context_idx],
+                                                                       answer['answer_start'],
+                                                                       answer['answer_start'] + len(answer['text'])))
         if compute_pos:
             dataset['questions_pos'].append([token.tag_ for token in question_doc])
 
@@ -183,7 +191,7 @@ def get_index_from_char(char, char2idx):
 
 def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: typing.Dict[str, int],
                               char2idx: typing.Dict[str, int], max_context_len: int, max_query_len: int,
-                              max_chars_per_word: int, include_pos: bool):
+                              max_chars_per_word: int, include_pos: bool, include_ans: bool = True):
     n_examples = len(dataset['questions'])
     contexts_widxs = []
     contexts_cidxs = []
@@ -203,8 +211,6 @@ def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: 
         question_widxs = np.ones(shape=max_query_len, dtype=np.int32) * word2idx["<<PAD>>"]
         question_cidxs = np.ones(shape=(max_query_len, max_chars_per_word), dtype=np.int32) * char2idx["<<PAD>>"]
         question_pos = np.zeros(shape=max_query_len, dtype=np.int32)
-        answer_start_location = 0
-        answer_end_location = 0
 
         cidx = dataset['contexts_idxs'][qidx]
         if len(dataset['contexts_word_tokens'][cidx]) > max_context_len or \
@@ -225,14 +231,16 @@ def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: 
             if include_pos:
                 question_pos[widx] = POS2IDX[dataset['questions_pos'][qidx][widx]]
 
-        answer_start_location = dataset['answers_locations'][qidx][0]
-        answer_end_location = dataset['answers_locations'][qidx][1]
+        if include_ans:
+            answer_start_location = dataset['answers_locations'][qidx][0]
+            answer_end_location = dataset['answers_locations'][qidx][1]
+            answers_start_locations.append(answer_start_location)
+            answers_end_locations.append(answer_end_location)
+
         contexts_widxs.append(context_widxs)
         contexts_cidxs.append(context_cidxs)
         questions_widxs.append(question_widxs)
         questions_cidxs.append(question_cidxs)
-        answers_start_locations.append(answer_start_location)
-        answers_end_locations.append(answer_end_location)
         qids.append(dataset['questions_ids'][qidx])
         if include_pos:
             contexts_pos.append(context_pos)
@@ -243,10 +251,12 @@ def get_features_from_dataset(dataset: typing.Dict[str, typing.List], word2idx: 
         'contexts_cidxs': np.array(contexts_cidxs),
         'questions_widxs': np.array(questions_widxs),
         'questions_cidxs': np.array(questions_cidxs),
-        'answers_start_locations': np.array(answers_start_locations),
-        'answers_end_locations': np.array(answers_end_locations),
         'qids': np.array(qids)
     }
+    if include_ans:
+        output['answers_start_locations'] = np.array(answers_start_locations)
+        output['answers_end_locations'] = np.array(answers_end_locations)
+
     if include_pos:
         output['contexts_pos'] = contexts_pos
         output['questions_pos'] = questions_pos
@@ -309,13 +319,6 @@ def save_object(obj: object, filepath: str, numpy_obj: bool = False, msg: str = 
         np.savez(filepath, **obj)
     print("Saving complete")
 
-
-def removed_useless_attributes(dataset: typing.Dict):
-    dataset.pop('contexts_word_tokens')
-    dataset.pop('contexts_char_tokens')
-    dataset.pop('questions_word_tokens')
-    dataset.pop('questions_char_tokens')
-    dataset.pop('answers_locations')
 
 def get_eval(dataset: typing.Dict):
     eval = {

@@ -6,7 +6,7 @@ import spacy
 import spacy.tokens
 
 from scripts.utils import load_raw_dataset, preprocess, get_features_from_dataset, \
-    load_glove_embeddings, initialize_char_embeddings, save_object, removed_useless_attributes, get_eval
+    load_glove_embeddings, initialize_char_embeddings, save_object, get_eval
 
 
 @click.command()
@@ -62,20 +62,12 @@ def run(squad_filepath: str, training_validation_split: int, glove_filepath: str
 
     training_features = get_features_from_dataset(training_set, word2idx, char2idx, max_context_len, max_query_len,
                                                   max_chars_per_word, compute_pos)
-
     save_object(training_features, os.path.join(output_dir, "training_set_features.npz"),
                 True, "training set features")
 
-    del training_features
-
-    removed_useless_attributes(training_set)
     training_eval = get_eval(training_set)
-
     save_object(training_eval, os.path.join(output_dir, "training_set_eval.json"), False,
                 "training set info for evaluation")
-
-    del training_set
-    del training_eval
 
     preprocess(validation_set, word_set, char_set, compute_pos)
     new_words = len(word_set) - n_unique_words
@@ -87,11 +79,8 @@ def run(squad_filepath: str, training_validation_split: int, glove_filepath: str
                                                     max_chars_per_word, compute_pos)
     save_object(validation_features, os.path.join(output_dir, "validation_set_features.npz"),
                 True, "validation set features")
-    del validation_features
 
-    removed_useless_attributes(validation_set)
     validation_eval = get_eval(validation_set)
-
     save_object(validation_eval, os.path.join(output_dir, "validation_set_eval.json"), False,
                 "validation set info for evaluation")
 
