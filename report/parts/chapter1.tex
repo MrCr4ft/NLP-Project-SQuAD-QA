@@ -1,0 +1,14 @@
+\chapter{Executive Summary}
+		We started by analyzing the SQuAD dataset\cite{DBLP:journals/corr/RajpurkarZLL16}, seeking a way to formalize the task of question answering, 
+	to get an idea of its properties and the preprocessing steps needed, as well as possible features to feed a model with.
+
+	After a shallow literature review on the main methods to tackle this task, we decided to go for an encoder-decoder-like architecture, as 
+	LSTMs with attention\cite{seo2018bidirectional}, transformers\cite{vaswani2017attention}, or BERT\cite{devlin2019bert}-like architectures.
+
+	In particular, given the huge training cost and the need to use more datasets associated with transformers, and the lack of parallelizability 
+	of recurrent layers, we decided to opt for an advanced architecture easier to train, which adopts a completely different approach.
+	
+	Indeed, QANet\cite{yu2018qanet} consists of only convolutional layers and relies on context-to-query attention and self-attention\cite{vaswani2017attention}
+	After a thorough examination of the architecture, we were able to implement it from scratch, making personal choices where details were lacking in the paper.
+	
+	We performed a full training/evaluation cycle by splitting the dataset we were provided with, and analyzed the predictions made by the model.
