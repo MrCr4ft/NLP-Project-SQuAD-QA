@@ -146,3 +146,7 @@ notebooks/
 
 # Model Checkpoints
 model_checkpoints/
+
+# Git Attributes
+.gitattributes
+
