@@ -1,2 +1,61 @@
 \chapter{Experimental Setup And Results}
+    Initially, the dataset was split into a training set, accounting for $95\%$ of the total, and a validation set.
+    We performed the split preserving the logical separation between different topics (i.e. title keywords).
+
+    Every analysis was performed on the training set, without ever inspecting the validation set.
+
+    We decided to ignore contexts longer than 400 tokens, since those constitute only around $0.07\%$ of the total, and questions longer than 60 tokens, since 
+    the longest question in the training set is composed of 40 tokens, but longer questions could be present in the test set.
     
+    Then, we tokenized contexts and queries, leaving also the opportunity for the user to compute words' POS tags as additional features.
+    For tokenization and POS tagging the spaCy library is used, with the pipeline optimized for accuracy. 
+    
+    In order to correctly retrieve the answer text at inference time, we also included the offset of each token of the context among the features of the dataset.
+
+    Then, we built the embedding matrices for words and characters.
+
+    The word embedding matrix was built loading pretrained GloVe\cite{pennington-etal-2014-glove} embeddings of dimension $300$ of only those words appearing at least once in the training set.
+    
+    The character embedding matrix, of dimension $200$, was randomly initialized drawing weights from a uniform distribution with zero mean and standard deviation equal to $0.1$.
+
+    We reserved the first two index of these matrix for the \textless PAD\textgreater  and \textless UNK\textgreater, to which all OOV words and characters were mapped, tokens respectively.
+    The corresponding embeddings of these two tokens were initialized as zero vectors.
+
+    Both the mappings of words and characters to indexes and the embedding matrices were stored on disk to be able to load them at anytime.
+
+    Word embeddings were kept fixed during training, unlike character embeddings which were trainable.
+
+    A summary of the hyperparameters of the network can be found in the table \ref{table:hyperparameters}.
+
+    \begin{table}
+        \begin{tabular}{|c c|} 
+            \hline
+            Hyperparameter & Value \\
+            \hline
+            Number of 2D convolutions applied to character embedding & 1 \\ 
+            Kernel size of 2D convolutions applied to character embedding & 5 \\
+            Character embedding dimension after 2D convolutions application & 200 \\
+            Number of linear Highway layers & 2 \\
+            Model hidden dimension (i.e. Resized embedding dimension) & 128 \\
+            Number of attention heads in the multi-head self-attention layer & 8 \\
+            Number of 1D convolutions performed inside the embedding encoder layer & 4 \\
+            Kernel size of 1D convolutions performed inside the embedding encoder layer & 7 \\
+            Number of encoder blocks in the embedding encoder layer & 1 \\
+            Number of 1D convolutions performed inside the model encoder layer & 2 \\
+            Kernel size of 1D convolutions performed inside the model encoder layer & 5 \\
+            Number of encoder blocks in the embedding encoder layer & 7 \\
+            \hline
+        \end{tabular}
+        \caption{Hyperparameters' values.\label{table:hyperparameters}}
+    \end{table}
+
+    \vspace{0.5cm}
+
+    As in \cite{yu2018qanet}, we used the ADAM optimizer\cite{kingma2017adam}, with $\beta_{1} = 0.8$, $\beta_{2} = 0.999$ , $\epsilon = 1e^{-7}$. 
+    We used a scheduler for the learning rate, increasing it from $0$ to $1e^{-3}$ during the first 1000 batches, 
+    where $lr_{i} = \frac{1}{log(1000)} * log(i+1)$, and then maintaining it constant.
+    We also applied exponential moving average with a decay rate of $0.9999$ to all trainable parameters.
+
+    The model was trained for 10 epochs on a Google Cloud Platform instance equipped with a GPU Nvidia A100 40GB, with a batch size of 32.
+
+    In addition, given that only 2 answers are longer than 30 tokens, we decided to consider only answer spans of length smaller or equal to $30$ during evaluation.
