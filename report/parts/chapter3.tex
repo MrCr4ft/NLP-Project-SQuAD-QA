@@ -18,7 +18,8 @@ to do this we computed the column normalized matrix [S--] of S with a softmax, t
 The output of this layer is, for each word, given by [c, a, c*a, c*b] where a and b are rows of A and B. 
 4. Model encoder layer
 In this layer we use the same encoder structure used in the Embedding encoder layer. The output of this layer is given by a concatenation of the outputs of the different blocks, in particular we concatenated
-the output of the first and second block, and the output of the first and third block. These blocks 
+the output of the first and second block, and the output of the first and third block. Because of the concatenation, the dimension of the embedding in input is larger, so we decided to bring it down with a one
+dimensional convolution.
 5. Output layer
 The two vector obtained in the previous layer are passed into two separate linear layers with a softmax at the end. This allow to compute the start and the end of an answer span. The loss function used
 is a sum of the cross-entropy loss function computed both on the star position and the end position probabilities.
