@@ -141,9 +141,6 @@ embeddings/
 # Preprocessing outputs
 preprocessed_dataset/
 
-# Notebooks
-notebooks/
-
 # Model Checkpoints
 model_checkpoints/
 
