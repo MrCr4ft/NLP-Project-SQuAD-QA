@@ -59,7 +59,7 @@ def get_predictions(model: torch.nn.Module, data_loader: torch.utils.data.DataLo
 @click.option('--spacy-gpu', default=False, help="Whether to use the GPU during preprocessing with Spacy")
 @click.option('--model-config-filepath', default="config.json",
               help="The path of the configuration file for the model initialization")
-@click.option('model-checkpoint-filepath', default="trained_model/epoch10_f1_69.59317_em_55.00389.pth.tar",
+@click.option('--model-checkpoint-filepath', default="trained_model/epoch10_f1_69.59317_em_55.00389.pth.tar",
               help="The model checkpoint to load")
 @click.option('--torch-gpu', default=True, help="Whether to use the GPU at inference time")
 @click.option('--batch-size', default=32, help="The batch size")
