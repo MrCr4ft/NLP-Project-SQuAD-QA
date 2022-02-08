@@ -1,10 +1,17 @@
 \chapter{Background}
-    Most of the knowledge needed to face the problem of 'question answering' has been acquired during the course. We focused mainly on understanding the differences between the two attention mechanisms
-    described in the paper: the multi-head self-attention and the context-to-query attention.
+    Most of the knowledge needed to face the problem of 'question answering' has been acquired during the course. 
+    We focused mainly on understanding the differences between the two attention mechanisms described in the paper: the multi-head
+     self-attention and the context-to-query attention.
 
-    Usually, the models used to tackle this problem were based on recurrent networks, used to process the sequential inputs and an attention mechanism to learn the interactions. With the
-    introduction of the transformer architecture, it was clear that giving up the recurrent model was beneficial in many ways, but the problem of training these networks discouraged us from using them.
-    However, in the QANet paper, we have learned that this architecture, given the absence of recurrent units and the use of convolution with global self-attention, promised to be 3x to 13x faster during training
-    and 4x to 9x during inference [CIT QANET] compared to the BiDAF [CIT BIDAF] architecture. These speed-ups come from the encoders blocks, described in the next section, employed instead of LSTM layers.
+    Usually, the models used to tackle this problem were based on recurrent networks, used to process the sequential inputs, 
+    and an attention mechanism to learn the interactions. 
+    With the introduction of the transformer architecture, it was clear that giving up the recurrent model was beneficial 
+    in many ways, but the problem of training these networks discouraged us from using them.
 
-    Furthermore, we decided to study and implement this architecture because it seemed capable of being trained on the dataset we had at our disposal without being too limited.
+    However, in the QANet paper, we have learned that this architecture, given the absence of recurrent units and the use 
+    of convolution with global self-attention, promised to be 3x to 13x faster during training and 4x to 9x during inference\cite{yu2018qanet}
+     compared to the BiDAF\cite{seo2018bidirectional} architecture. These speed-ups come from the encoders blocks, 
+    described in the next section, employed instead of LSTM layers.
+
+    Furthermore, we decided to study and implement this architecture because it seemed capable of being trained on 
+    the dataset we had at our disposal without being too limited.
