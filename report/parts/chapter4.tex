@@ -16,7 +16,7 @@
 
     The word embedding matrix was built loading pretrained GloVe\cite{pennington-etal-2014-glove} embeddings of dimension $300$ of only those words appearing at least once in the training set.
     
-    The character embedding matrix, of dimension $200$, was randomly initialized drawing weights from a uniform distribution with zero mean and standard deviation equal to $0.1$.
+    The character embedding matrix, of dimension $200$, was randomly initialized drawing weights from a normal distribution with zero mean and standard deviation equal to $0.1$.
 
     We reserved the first two index of these matrix for the \textless PAD\textgreater  and \textless UNK\textgreater, to which all OOV words and characters were mapped, tokens respectively.
     The corresponding embeddings of these two tokens were initialized as zero vectors.
@@ -59,3 +59,5 @@
     The model was trained for 10 epochs on a Google Cloud Platform instance equipped with a GPU Nvidia A100 40GB, with a batch size of 32.
 
     In addition, given that only 2 answers are longer than 30 tokens, we decided to consider only answer spans of length smaller or equal to $30$ during evaluation.
+
+    We were able to obtain an EM score of $55.00\%$, and an F1 score of $69.59\%$ on the validation set.

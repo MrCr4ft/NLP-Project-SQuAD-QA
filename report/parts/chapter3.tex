@@ -26,7 +26,10 @@
         We implemented the convolutions in the encoder block as depth-wise separable, as in the paper. 
         
         The multi-head attention mechanism that we have used is the one defined in \cite{vaswani2017attention}, which computes attention as:
-        $MultiHeadAttention(Q,K,V) = Concat(head_{1},...,head_{n}) W^{O}$ where $head_{i} = softmax(\frac{Q_{i}W_{i}^{Q} (K_{i}W_{i}^{K})^{T}}{\sqrt(d_{k})}) V_{i} W_{i}^{V}$.
+        \begin{gather*}
+            MultiHeadAttention(Q,K,V) = Concat(head_{1},...,head_{n}) W^{O}\\
+            head_{i} = softmax(\frac{Q_{i}W_{i}^{Q} (K_{i}W_{i}^{K})^{T}}{\sqrt(d_{k})}) V_{i} W_{i}^{V}.
+        \end{gather*}
         
         In our case, given that we are applying a self-attention, $Q$, $K$, and $V$ are the same matrices.
     
