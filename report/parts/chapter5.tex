@@ -1,0 +1,81 @@
+\chapter{Error Analysis And Discussion}
+
+    Seeking possible improvements in the architecture and the dataset's preprocessing, we performed a thorough analysis of the 
+    errors committed by the model, finding out interesting study cases.
+
+    Here, for the sake of brevity, we report the most significant ones.
+
+    We could distinguish among two kinds of errors: those already part of the dataset, which could be addressed by adding 
+    data cleaning operations to the pipeline, and those due to the model being unable to fully comprehend either the context or the query. The latter provides us with some space for improvement.
+
+    Two examples of the first kind of errors are the following:
+
+    
+    \begin{itemize}
+        \item 
+            Given the chunck of context:
+            \begin{center}
+                Local uprisings starting on October 11, 1911 led to the Xinhai Revolution. Puyi, the last emperor, 
+                abdicated on February 12, 1912.
+            \end{center}
+            
+            And the question: 
+            \begin{center}
+                What started on October 11, 1911?
+            \end{center}
+
+            The model predicted "Local uprisings" as the answer, while the correct one was "Xinhai Revolution".
+            Actually, if we think about it, what really started on October 11, 1911, according to the text, were the local uprisings, 
+            which in turn led to the Xinhai Revolution. This kind of inaccuracies in the dataset are particularly tough to address, 
+            and probably we should just get along with them.
+        
+        \item
+            Given the question:
+            \begin{center}
+                Question:  What years did the Qianlong Emperor rule?
+            \end{center}
+
+            The model predicted the answer "1735-1796", while the correct one was "(1735-1796)". This kind of inaccuracies could be 
+            instead addressed by preprocessing operations, which could include (especially for other kind of errors) accounting for 
+            several possible correct answers.
+    \end{itemize}
+
+    Two interesting examples of the second kind of errors are the following:
+
+    \begin{itemize}
+        \item 
+            Given the chunck of context:
+            \begin{center}
+                The Qing dynasty was founded not by Han Chinese, who constitute the majority of the Chinese population, 
+                but by a sedentary farming people known as the Jurchen, a Tungusic people who lived around the region now 
+                comprising the Chinese provinces of Jilin and Heilongjiang. 
+            \end{center}
+
+            And the question: 
+            \begin{center}
+                Who founded the Qing dynasty?
+            \end{center}
+
+            The model predicted "Han Chinese" as the answer, while the correct one was "Jurchen". In this case it seems that 
+            the model was unable to capture the negation in the first sentence, a but-clause. To improve performances 
+            we could use linguistic annotations as additional features, like POS tags and identifiers of the negation's scope.
+            
+        
+        \item
+            Given the extract of context:
+            \begin{center}
+                The Qing dynasty, officially the Great Qing, also called the Empire of the Great Qing, or the Manchu dynasty, 
+                was the last imperial dynasty of China, ruling from 1644 to 1912 with a brief, abortive restoration in 1917. 
+                It was preceded by the Ming dynasty and succeeded by the Republic of China. 
+            \end{center}
+
+            And the question:
+            \begin{center}
+                What was the dynasty that ruled before the Manchu?
+            \end{center}
+
+            The model predicted "Qing" as the answer, while the correct one was "Ming". Here the problem could be the presence of an 
+            anaphoric reference (i.e. "\textbf{It} was preceded by the Ming dynasty"). Dealing with coreferences is a difficult task, 
+            which could for sure be addressed for further extensions of our work.
+
+    \end{itemize}
